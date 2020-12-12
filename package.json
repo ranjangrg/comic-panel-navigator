@@ -1,0 +1,24 @@
+{
+  "name": "comic-panel-navigator",
+  "version": "1.0.0",
+  "description": "Provides navigator for comics panel-by-panel",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ranjangrg/comic-panel-navigator.git"
+  },
+  "keywords": [
+    "comic",
+    "panel",
+    "navigator"
+  ],
+  "author": "Ranjan Gurung",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/ranjangrg/comic-panel-navigator/issues"
+  },
+  "homepage": "https://github.com/ranjangrg/comic-panel-navigator#readme"
+}
