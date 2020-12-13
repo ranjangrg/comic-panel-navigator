@@ -46,6 +46,7 @@ let state = {
 		"pages": []
 	},
 	"globalFunctions": {
+		"getVariableName": undefined,	// pass variable within { ... }
 		"getElementId": undefined,
 		"appendElementObjectToDOM": undefined,
 		"gotoPage": undefined,
@@ -65,68 +66,82 @@ let state = {
 		"gotoPrevPage2x": "<i class='fas fa-2x fa-step-backward'></i>",
 		"gotoNextPage2x": "<i class='fas fa-2x fa-step-forward'></i>",
 		"viewWholePage2x": "<i class='fas fa-2x fa-compress'></i>"
+	}, 
+	"navigatorBtnId": { 
+		"gotoPrevPage": "nav-prev-page-btn-id",
+		"gotoFirstPanel": "nav-first-panel-btn-id",
+		"gotoPrevPanel": "nav-prev-panel-btn-id",
+		"viewWholePage": "nav-full-page-btn-id",
+		"gotoNextPanel": "nav-next-panel-btn-id",
+		"gotoFinalPanel": "nav-final-panel-btn-id",
+		"gotoNextPage": "nav-next-page-btn-id"
 	}
 };
 
-/**
- * Returns element id without '#' at the front; 
- * TODO: maybe function name too similar to getElementById ???
- * @param {String} componentName Name of the component whose 'id' is to be found
- * @return {String} Element id without '#' at the beginning
- */
-state.globalFunctions.getElementId = function (componentName) {
-	return elementIDs[componentName].substr(1);
-}
+function initGlobalState() {
+	state.globalFunctions.getVariableName = function (variableObject) {
+		return Object.keys(variableObject)[0];
+	}
 
-/**
- * Appends elemenObject to the element identified by given parentDomId as child element.
- * @param {String} parentDomId Id of parent element to where new element is to appended
- * @param {*} elementObject HTML element object
- */
-state.globalFunctions.appendElementObjectToDOM = function (parentDomId, elementObject) {
-	let parentElem = document.getElementById(parentDomId);
-	parentElem.appendChild(elementObject);
-}
+	/**
+	 * Returns element id without '#' at the front; 
+	 * TODO: maybe function name too similar to getElementById ???
+	 * @param {String} componentName Name of the component whose 'id' is to be found
+	 * @return {String} Element id without '#' at the beginning
+	 */
+	state.globalFunctions.getElementId = function (componentName) {
+		return elementIDs[componentName].substr(1);
+	}
 
-state.globalFunctions.checkAndReturnPageIdx = function (pageIdx) {
-	// check if page index is an acceptable value
-	if (pageIdx < 0) { pageIdx = 0; }
-	if (pageIdx > state.comicData.pages.length - 1) { pageIdx = state.comicData.pages.length - 1;}	// can be else if
-	return pageIdx;
-}
+	/**
+	 * Appends elemenObject to the element identified by given parentDomId as child element.
+	 * @param {String} parentDomId Id of parent element to where new element is to appended
+	 * @param {*} elementObject HTML element object
+	 */
+	state.globalFunctions.appendElementObjectToDOM = function (parentDomId, elementObject) {
+		let parentElem = document.getElementById(parentDomId);
+		parentElem.appendChild(elementObject);
+	}
 
-state.globalFunctions.gotoPage = function (pageIdx) {
-	state.comicData.currentPageIdx = state.globalFunctions.checkAndReturnPageIdx(pageIdx);
-	state.panelNavigatorHandler.currentPanelIdx = 0;
-	state.panelNavigatorHandler.loadNewPage(state.comicData.pages[state.comicData.currentPageIdx]);
-	state.panelNavigatorHandler.state.fullPageRequested = false;
-	state.panelNavigatorHandler.currentPanel.reset();
-	state.panelNavigatorHandler.gotoFirstPanel();
-}
+	state.globalFunctions.checkAndReturnPageIdx = function (pageIdx) {
+		// check if page index is an acceptable value
+		if (pageIdx < 0) { pageIdx = 0; }
+		if (pageIdx > state.comicData.pages.length - 1) { pageIdx = state.comicData.pages.length - 1;}	// can be else if
+		return pageIdx;
+	}
 
-state.globalFunctions.gotoPreviousPage = function () {
-	let newPageIdx = state.comicData.currentPageIdx - 1;
-	state.globalFunctions.gotoPage(newPageIdx);
-}
+	state.globalFunctions.gotoPage = function (pageIdx) {
+		state.comicData.currentPageIdx = state.globalFunctions.checkAndReturnPageIdx(pageIdx);
+		state.panelNavigatorHandler.currentPanelIdx = 0;
+		state.panelNavigatorHandler.loadNewPage(state.comicData.pages[state.comicData.currentPageIdx]);
+		state.panelNavigatorHandler.state.fullPageRequested = false;
+		state.panelNavigatorHandler.currentPanel.reset();
+		state.panelNavigatorHandler.gotoFirstPanel();
+	}
 
-state.globalFunctions.gotoNextPage = function () {
-	let newPageIdx = state.comicData.currentPageIdx + 1;
-	if (newPageIdx < state.comicData.pages.length) {
-		// goto new page only if next page exists
+	state.globalFunctions.gotoPreviousPage = function () {
+		let newPageIdx = state.comicData.currentPageIdx - 1;
 		state.globalFunctions.gotoPage(newPageIdx);
 	}
-}
+
+	state.globalFunctions.gotoNextPage = function () {
+		let newPageIdx = state.comicData.currentPageIdx + 1;
+		if (newPageIdx < state.comicData.pages.length) {
+			// goto new page only if next page exists
+			state.globalFunctions.gotoPage(newPageIdx);
+		}
+	}
+};
 
 class Block {
 	constructor(elementID) {
-		this.state.elementID = elementID;
-	};
-	state = {
-		"elementID": "",
-		"DOMHtml": "",
-		"DOMTriggers" : {},
-		"DOMCss" : {},
-		"DOMClasses": {}
+		this.state = {
+			"elementID": elementID,
+			"DOMHtml": "",
+			"DOMTriggers" : {},
+			"DOMCss" : {},
+			"DOMClasses": {}
+		};
 	};
 
 	set DOMHtml(htmlString) {this.state.DOMHtml = htmlString;};
@@ -189,7 +204,7 @@ class PanelDisplay {
 		this.state.panelOriginalData = {...panelData};
 		this.changeDimensions();
 	}
-	changeDimensions = function() {
+	changeDimensions() {
 		let imageHolderElem = document.getElementById(state.globalFunctions.getElementId("panelDisplayImageHolder"));
 		let imageElem = document.getElementById(state.globalFunctions.getElementId("panelDisplayImage"));
 
@@ -247,7 +262,7 @@ class PanelNavigatorHandler {
 
 	get currentPanel() {return this.state.currentPanel;}
 
-	loadNewPage = function(comicDataForCurrentPage) {
+	loadNewPage(comicDataForCurrentPage) {
 		let imageElem = document.getElementById(this.state.panelDisplayImageElemId);
 		imageElem.src = comicDataForCurrentPage.pageUrl;	// change image src within image element
 		this.state.panelLocations = comicDataForCurrentPage.panelData;
@@ -256,7 +271,7 @@ class PanelNavigatorHandler {
 		this.gotoFirstPanel();
 	}
 
-	updateCurrentPanel = function(newPanelIdx) {
+	updateCurrentPanel(newPanelIdx) {
 		this.state.currentPanelIdx = this.checkPanelIdx(newPanelIdx);
 
 		if (this.state.fullPageRequested) {
@@ -283,7 +298,7 @@ class PanelNavigatorHandler {
 			inputElem.value = this.state.currentPanelIdx + 1;
 		}
 	};
-	checkPanelIdx = function(panelIdx) {
+	checkPanelIdx(panelIdx) {
 		let newCurrentPageIdx = 0;
 		let oldCurrentPageIdx = 0;
 		// filter bad panelIdx values
@@ -320,7 +335,7 @@ class PanelNavigatorHandler {
 		}
 		return panelIdx;
 	};
-	moveToPosition = function (offsetX, offsetY) {
+	moveToPosition(offsetX, offsetY) {
 		let padding = parseInt(this.currentPanel.state.padding);
 		//let paddingCompensatedWidth = parseInt(offsetX) - padding;
 		//let paddingCompensatedHeight = parseInt(offsetY) - padding;
@@ -329,11 +344,11 @@ class PanelNavigatorHandler {
 			imageElem.style.transform = `translate(-${offsetX}px, -${offsetY}px)`;
 		}
 	}
-	gotoPanel = function(panelIdx) {
+	gotoPanel(panelIdx) {
 		this.updateCurrentPanel(panelIdx);
 		this.moveToPosition(this.currentPanel.state.panelData.x, this.currentPanel.state.panelData.y);
 	};
-	gotoPanelViaInput = function() {
+	gotoPanelViaInput() {
 		// find number in input form first 
 		let inputElem = document.getElementById(this.state.inputNavigator);
 		if (inputElem) {
@@ -341,25 +356,25 @@ class PanelNavigatorHandler {
 			this.gotoPanel(requestedPanelIdx);
 		}
 	};
-	gotoFirstPanel = function() {
+	gotoFirstPanel() {
 		this.state.fullPageRequested = false;
 		this.gotoPanel(0);
 	};
-	gotoPrevPanel = function() {
+	gotoPrevPanel() {
 		this.state.fullPageRequested = false;
 		let newPanelIdx = this.state.currentPanelIdx - 1;
 		this.gotoPanel(newPanelIdx);
 	};
-	gotoNextPanel = function() {
+	gotoNextPanel() {
 		this.state.fullPageRequested = false;
 		let newPanelIdx = this.state.currentPanelIdx + 1;
 		this.gotoPanel(newPanelIdx);
 	};
-	gotoFinalPanel = function() {
+	gotoFinalPanel() {
 		this.state.fullPageRequested = false;
 		this.gotoPanel(this.state.panelLocations.length - 1);
 	};
-	gotoFullPageView = function () {
+	gotoFullPageView() {
 		this.state.fullPageRequested = !(this.state.fullPageRequested);	// flag this to true on 'this' scope 
 		this.gotoPanel(this.state.currentPanelIdx);	// !IMP: fullPageIdxCode indicates it is a full page view panel
 	};
@@ -414,7 +429,7 @@ class DataParser {
 	 * @param {JSON} jsonObj JSON object to parse
 	 * @return {Array} the JSON obj as an Array
 	 */
-	parseListFromJson = function(jsonObj) {
+	parseListFromJson(jsonObj) {
 		let keyList = Object.keys(jsonObj);
 		let panelCount = keyList.length;
 		let panelDataArr = new Array(panelCount);
@@ -429,7 +444,7 @@ class DataParser {
 	 * @param {String} jsonString data as string
 	 * @return {Array} the panel-data parsed from the provided string
 	 */
-	parsePanelDataFromString = function(jsonString) {
+	parsePanelDataFromString(jsonString) {
 		let jsonObj = JSON.parse(jsonString);
 		let panelData = this.parseListFromJson(jsonObj);
 		return panelData;
@@ -451,6 +466,7 @@ function createNavigationElem() {
 	};
 	navigationBlock.DOMClasses = "row no-gutters pt-1";
 	const navigationHandlerName = "state.panelNavigatorHandler";	// name of the handler object; handler should be created after DOM is created
+
 	navigationBlock.DOMHtml = 
 	`<div class="container-fluid no-gutters">
 		<div id="${state.globalFunctions.getElementId("inputNavigatorWrapper")}" class="row no-gutters justify-content-center"> 
@@ -463,13 +479,13 @@ function createNavigationElem() {
 		</div>
 		<div id="${state.globalFunctions.getElementId("symbolNavigator")}" class="row no-gutters justify-content-center">
 			<form class="form-inline">
-				<button type="button" class="btn btn-lg mb-2 text-light" onclick="state.globalFunctions.gotoPreviousPage()" data-toggle="tooltip" title="Go to Previous Page (Shift + &larr;)"> ${state.symbolCodesForNavigator.gotoPrevPage} </button>
-				<button type="button" class="btn btn-lg mb-2 text-light" onclick="${navigationHandlerName}.gotoFirstPanel()" data-toggle="tooltip" title="Go to First Panel (home)"> ${state.symbolCodesForNavigator.gotoFirstPanel} </button> &nbsp;
-				<button type="button" class="btn btn-lg mb-2 text-light" onclick="${navigationHandlerName}.gotoPrevPanel()" data-toggle="tooltip" title="Go to Previous Panel (&larr;)"> ${state.symbolCodesForNavigator.gotoPrevPanel} </button> &nbsp;
-				<button type="button" class="btn btn-lg mb-2 text-light" onclick="${navigationHandlerName}.gotoFullPageView()" data-toggle="tooltip" title="View Whole Page (f)"> ${state.symbolCodesForNavigator.viewWholePage}</button>
-				<button type="button" class="btn btn-lg mb-2 text-light" onclick="${navigationHandlerName}.gotoNextPanel()" data-toggle="tooltip" title="Go to Next Panel (&rarr;)"> ${state.symbolCodesForNavigator.gotoNextPanel} </button> &nbsp;
-				<button type="button" class="btn btn-lg mb-2 text-light" onclick="${navigationHandlerName}.gotoFinalPanel()" data-toggle="tooltip" title="Go to Final Panel (end)"> ${state.symbolCodesForNavigator.gotoFinalPanel} </button>
-				<button type="button" class="btn btn-lg mb-2 text-light" onclick="state.globalFunctions.gotoNextPage()" data-toggle="tooltip" title="Go to Next Page (Shift + &rarr;)"> ${state.symbolCodesForNavigator.gotoNextPage} </button>
+				<button id="${state.navigatorBtnId.gotoPrevPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Page (Shift + &larr;)"> ${state.symbolCodesForNavigator.gotoPrevPage} </button>
+				<button id="${state.navigatorBtnId.gotoFirstPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to First Panel (home)"> ${state.symbolCodesForNavigator.gotoFirstPanel} </button> &nbsp;
+				<button id="${state.navigatorBtnId.gotoPrevPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Panel (&larr;)"> ${state.symbolCodesForNavigator.gotoPrevPanel} </button> &nbsp;
+				<button id="${state.navigatorBtnId.viewWholePage}" type="button" class="btn btn-lg mb-2 text-light"  data-toggle="tooltip" title="View Whole Page (f)"> ${state.symbolCodesForNavigator.viewWholePage}</button>
+				<button id="${state.navigatorBtnId.gotoNextPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Next Panel (&rarr;)"> ${state.symbolCodesForNavigator.gotoNextPanel} </button> &nbsp;
+				<button id="${state.navigatorBtnId.gotoFinalPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Final Panel (end)"> ${state.symbolCodesForNavigator.gotoFinalPanel} </button>
+				<button id="${state.navigatorBtnId.gotoNextPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Next Page (Shift + &rarr;)"> ${state.symbolCodesForNavigator.gotoNextPage} </button>
 			</form>
 		</div>
 	</div>`;
@@ -621,9 +637,9 @@ const blankPanelJSONString = `[
 	{"x": "570", "y": "1075", "width": "495", "height": "520"}
 ]`;
 
-const imageUrl1 = "./assets/images/cat-man(comicbookplus)_page60.jpg";
-const imageUrl2 = "./assets/images/cat-man(comicbookplus)_page61.jpg";
-const imageUrl3 = "./assets/images/cat-man(comicbookplus)_page62.jpg";
+const imageUrl1 = "http://192.168.0.67/assets/images/cat-man(comicbookplus)_page60.jpg";
+const imageUrl2 = "http://192.168.0.67/assets/images/cat-man(comicbookplus)_page61.jpg";
+const imageUrl3 = "http://192.168.0.67/assets/images/cat-man(comicbookplus)_page62.jpg";
 /* cat man comics (src: comicbookplus website) */
 const comicJSONStringP60 = `[
 	{"#":" 1","x":"25","y":"25","width":"359","height":"380"},
@@ -653,12 +669,14 @@ const comicJSONStringP62 = `[
 	{"#":" 5","x":"19","y":"827","width":"447","height":"410"},
 	{"#":" 6","x":"465","y":"824","width":"417","height":"420"}
 ]`;
+/* cat man comics (src: comicbookplus website) */
 
-const _comicData = `[
+const comicData = `[
 	{"pageUrl": "${imageUrl1}", "panelData": ${comicJSONStringP60} },
 	{"pageUrl": "${imageUrl2}", "panelData": ${comicJSONStringP61} },
 	{"pageUrl": "${imageUrl3}", "panelData": ${comicJSONStringP62} }
 ]`;
+
 /* ------------------- */
 /* only for debug: END */
 /* ------------------- */
@@ -747,6 +765,22 @@ function initKeyBinding(navigationHandler) {
 }
 
 /**
+ * Adds 'onclick' event listener to nav buttons binding to 
+ * corresponding methods from either 'navigationHandler' obj 
+ * or 'state.globalFunctions'
+ * @param {HandlerObject} navigationHandler 
+ */
+function initNavigatorBinding(navigationHandler) {
+	document.getElementById(state.navigatorBtnId.gotoPrevPage).onclick = function() { state.globalFunctions.gotoPreviousPage(); };
+	document.getElementById(state.navigatorBtnId.gotoFirstPanel).onclick = function() { navigationHandler.gotoFirstPanel(); };
+	document.getElementById(state.navigatorBtnId.gotoPrevPanel).onclick = function() { navigationHandler.gotoPrevPanel(); };
+	document.getElementById(state.navigatorBtnId.viewWholePage).onclick = function() { navigationHandler.gotoFullPageView(); };
+	document.getElementById(state.navigatorBtnId.gotoNextPanel).onclick = function() { navigationHandler.gotoNextPanel(); };
+	document.getElementById(state.navigatorBtnId.gotoFinalPanel).onclick = function() { navigationHandler.gotoFinalPanel(); };
+	document.getElementById(state.navigatorBtnId.gotoNextPage).onclick = function() { state.globalFunctions.gotoNextPage(); };
+}
+
+/**
  * Doesn't work; Reason:
  * bootstrap tooltip isn't guaranteed to work on hidden elements
  */
@@ -767,51 +801,17 @@ function initPage() {
 }
 
 function initApp() {
+	initGlobalState();
 	initPage();
 	state.comicData.currentPageIdx = 0;	// delete me
 	initDivs();
 	state.panelNavigatorHandler = new PanelNavigatorHandler(state.comicData.pages[state.comicData.currentPageIdx].panelData);
 	initOnloadMethods(state.panelNavigatorHandler);
 	initTooltips();
+	initNavigatorBinding(state.panelNavigatorHandler);
 	initKeyBinding(state.panelNavigatorHandler);
 }
 
-$( document ).ready(function() {
+jQuery(function() {
 	initApp();
 });
-
-/* REDUNDANT: initiate DOMs, using single stringified html code */
-const OLDdivContent = `
-<div id="${state.globalFunctions.getElementId("navigatorWrapper")}" class="row no-gutters pt-1">
-	<div class="container">
-		<div id="${state.globalFunctions.getElementId("inputNavigatorWrapper")}" class="row no-gutters justify-content-center">
-			<form class="form-inline">
-				<div class="form-group mx-sm-3 mb-2">
-					<input type="number" class="form-control" id="${state.globalFunctions.getElementId("inputNavigator")}" value="1" placeholder="Panel">
-				</div>
-				<button type="button" class="btn btn-primary mb-2" onclick="gotoPanel()"> Goto Panel </button>
-			</form>
-		</div>
-		<div id="${state.globalFunctions.getElementId("symbolNavigator")}" class="row no-gutters justify-content-center">
-			<form class="form-inline">
-				<button type="button" class="btn btn-lg mb-2" onclick="gotoFirstPanel()" data-toggle="tooltip" title="Go to first Panel"> <i class="fas fa-2x fa-angle-double-left"></i> </button> &nbsp;
-				<button type="button" class="btn btn-lg mb-2" onclick="gotoPrevPanel()" data-toggle="tooltip" title="Go to Previous Panel"> <i class="fas fa-2x fa-arrow-circle-left"></i> </button> &nbsp;
-				<button type="button" class="btn btn-lg mb-2" onclick="gotoNextPanel()" data-toggle="tooltip" title="Go to Next Panel"> <i class="fas fa-2x fa-arrow-circle-right"></i> </button> &nbsp;
-				<button type="button" class="btn btn-lg mb-2" onclick="gotoLastPanel()" data-toggle="tooltip" title="View whole Page"> <i class="fas fa-2x fa-angle-double-right"></i> </button>
-			</form>
-		</div>
-	</div>
-</div>
-<div id="${state.globalFunctions.getElementId("currentPanelIndicatorWrapper")}" class="row no-gutters display-4 justify-content-center"> 
-	Panel <span id="${state.globalFunctions.getElementId("currentPanelIndicator")}"> 1 </span> 
-</div>
-<div id="${state.globalFunctions.getElementId("panelDisplayWrapper")}" class="row no-gutters justify-content-center">
-	<div id="${state.globalFunctions.getElementId("panelDisplayImageHolder")}" style="overflow: hidden;">
-		<img 
-			id="${state.globalFunctions.getElementId("panelDisplayImage")}" 
-			class="no-resize"
-			src=""
-			width="auto" >
-	</div>
-</div>`;
-
