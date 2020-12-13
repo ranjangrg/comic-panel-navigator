@@ -1,8 +1,8 @@
 {
   "name": "comic-panel-navigator",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Provides navigator for comics panel-by-panel",
-  "main": "index.js",
+  "private": true,
   "dependencies": {
     "bootstrap": "^4.5.3",
     "@fortawesome/fontawesome-free": "^5.15.1",
