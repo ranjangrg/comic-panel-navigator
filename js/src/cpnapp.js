@@ -10,7 +10,7 @@
  * 7. Mouse-click on panel (in full page view) to get to panel feature (Very user friendly)
  * 8. have page-turn like effect when page is turned/changed (visual indication of page turn)
  * 9. implement settings feature (+ select app height etc.)
- * 10. Use global Class instead of scoped function (... in progress)
+ * 10. Use global Class instead of scoped function (... DONE)
  */
 
 "use strict";
@@ -342,7 +342,6 @@ function createNavigationElem(globalState) {
 		"width": "100%",
 		"position": "absolute",
 		"left": "0%",
-		//"background-color": "rgba(0,0,0,0.5)",
 		"background-image": "linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.3), rgba(0,0,0,0.5), rgba(0,0,0,0.7))",
 		"overflow": "hidden",
 		"text-shadow": "-1px -1px 0 #000, 1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000",	// sharpens icons
@@ -381,9 +380,13 @@ function createCurrentPanelIndicatorWrapperElem(globalState) {
 	let currentPanelIndicatorWrapperBlock = new Block(globalState.globalFunctions.getElementId("currentPanelIndicatorWrapper"));
 	currentPanelIndicatorWrapperBlock.DOMCss = { 
 		"z-index": "4",
+		"width": "100%",
+		"bottom": "0",
 		"display": "none",
-		"position": "absolute",
-		"overflow": "hidden"
+		"position": "fixed",
+		"overflow": "hidden",
+		"padding": "0.5em",
+		"background-image": "linear-gradient(0deg, rgba(0,0,0,0.5), rgba(0,0,0,0.8))"
 	};
 	currentPanelIndicatorWrapperBlock.DOMClasses = "row no-gutters h4 justify-content-center text-white";
 	currentPanelIndicatorWrapperBlock.DOMHtml = `<span id="${globalState.globalFunctions.getElementId("currentPanelIndicator")}"> - </span>`;
@@ -503,86 +506,118 @@ function createHelpModalElem(globalState) {
 	return helpModalElem;
 }
 
-function comicPanelNavigatorAppInit( appState ) {
-	/* elements' ID list: dictates what to name each DOM elements */
-	let elementIDs = {
-		"appEntry": "#comic-and-navigator-app-entry-id",
-		"navigatorWrapper": "#navigator-wrapper-id",
-		"inputNavigatorWrapper": "#input-navigator-wrapper-id",
-		"inputNavigator": "#input-navigator-id",
-		"symbolNavigator": "#symbol-navigator-id",
-		"currentPanelIndicatorWrapper": "#current-panel-indicator-wrapper-id",
-		"currentPanelIndicator": "#current-panel-indicator-id",
-		"panelDisplayWrapper": "#panel-display-wrapper-id",
-		"panelDisplayImageHolder": "#panel-display-image-holder-id",
-		"panelDisplayImage": "#panel-display-image-id",
-		"showHelpModalButton": "#show-help-modal-btn-id",
-		"helpModalWrapper": "#help-modal-wrapper-id",
-		"helpModal": "#help-modal-id",
-		"openHelpModalBtn": "#open-help-modal-button-id"
-	};
+class comicPanelNavigatorApp {
+	/* note: using selfAppObject to bind 'this' seems a bit hacky */
+	/* TODO: maybe find a cleaner implementation */
 
-	let state = {
-		"appHeight": "790px",	// height of the total app (740px normally)
-		"panelNavigatorHandler": undefined,
-		"navigationElem": undefined,
-		"currentPanelIndicatorWrapperElem": undefined,
-		"panelDisplayWrapperElem": undefined,
-		"helpModalElem": undefined,
-		"comicDataUrl": "",
-		"comicData": {
-			"title": "",
-			"author": "",
-			"currentPageIdx": 0,
-			"pages": []
-		},
-		"globalFunctions": {
-			"getElementId": undefined,
-			"appendElementObjectToDOM": undefined,
-			"gotoPage": undefined,
-			"gotoPreviousPage": undefined,
-			"gotoNextPage": undefined,
-			"checkAndReturnPageIdx": undefined
-		},
-		"symbolCodesForNavigator": { 
-			"gotoPrevPage": "<i class='fas fa-step-backward'></i>",
-			"gotoFirstPanel": "<i class='fas fa-2x fa-angle-double-left'></i>",
-			"gotoPrevPanel": "<i class='fas fa-2x fa-arrow-circle-left'></i>",
-			"viewWholePage": "<i class='fas fa-compress'></i>",
-			"gotoNextPanel": "<i class='fas fa-2x fa-arrow-circle-right'></i>",
-			"gotoFinalPanel": "<i class='fas fa-2x fa-angle-double-right'></i>",		
-			"gotoNextPage": "<i class='fas fa-step-forward'></i>",
-			"info": "<i class='fas fa-2x fa-info-circle'></i>",
-			"gotoPrevPage2x": "<i class='fas fa-2x fa-step-backward'></i>",
-			"gotoNextPage2x": "<i class='fas fa-2x fa-step-forward'></i>",
-			"viewWholePage2x": "<i class='fas fa-2x fa-compress'></i>"
-		}, 
-		"navigatorBtnId": { 
-			"gotoPrevPage": "nav-prev-page-btn-id",
-			"gotoFirstPanel": "nav-first-panel-btn-id",
-			"gotoPrevPanel": "nav-prev-panel-btn-id",
-			"viewWholePage": "nav-full-page-btn-id",
-			"gotoNextPanel": "nav-next-panel-btn-id",
-			"gotoFinalPanel": "nav-final-panel-btn-id",
-			"gotoNextPage": "nav-next-page-btn-id"
-		}
-	};
+	constructor( appState ) {
+		/* elements' ID list: dictates what to name each DOM elements */
+		this.elementIDs = {
+			"appEntry": "#comic-and-navigator-app-entry-id",
+			"navigatorWrapper": "#navigator-wrapper-id",
+			"inputNavigatorWrapper": "#input-navigator-wrapper-id",
+			"inputNavigator": "#input-navigator-id",
+			"symbolNavigator": "#symbol-navigator-id",
+			"currentPanelIndicatorWrapper": "#current-panel-indicator-wrapper-id",
+			"currentPanelIndicator": "#current-panel-indicator-id",
+			"panelDisplayWrapper": "#panel-display-wrapper-id",
+			"panelDisplayImageHolder": "#panel-display-image-holder-id",
+			"panelDisplayImage": "#panel-display-image-id",
+			"showHelpModalButton": "#show-help-modal-btn-id",
+			"helpModalWrapper": "#help-modal-wrapper-id",
+			"helpModal": "#help-modal-id",
+			"openHelpModalBtn": "#open-help-modal-button-id"
+		};
 
-	let initGlobalState = new Promise( (resolve, reject) => {
-		if (appState.appHeight !== undefined) { state.appHeight = appState.appHeight; } else {delete appState.appHeight}
-		if (appState.comicDataUrl !== undefined) { state.comicDataUrl = appState.comicDataUrl; } else {delete appState.comicDataUrl}
-		resolve("[INIT_GLOBAL_STATE]: Loaded new states.");
-	});
+		this.state = {
+			"appHeight": "790px",	// height of the total app (740px normally)
+			"panelNavigatorHandler": undefined,
+			"navigationElem": undefined,
+			"currentPanelIndicatorWrapperElem": undefined,
+			"panelDisplayWrapperElem": undefined,
+			"helpModalElem": undefined,
+			"comicDataUrl": "",
+			"comicData": {
+				"title": "",
+				"author": "",
+				"currentPageIdx": 0,
+				"pages": []
+			},
+			"globalFunctions": {
+				"getElementId": undefined,
+				"appendElementObjectToDOM": undefined,
+				"gotoPage": undefined,
+				"gotoPreviousPage": undefined,
+				"gotoNextPage": undefined,
+				"checkAndReturnPageIdx": undefined
+			},
+			"symbolCodesForNavigator": { 
+				"gotoPrevPage": "<i class='fas fa-step-backward'></i>",
+				"gotoFirstPanel": "<i class='fas fa-2x fa-angle-double-left'></i>",
+				"gotoPrevPanel": "<i class='fas fa-2x fa-arrow-circle-left'></i>",
+				"viewWholePage": "<i class='fas fa-compress'></i>",
+				"gotoNextPanel": "<i class='fas fa-2x fa-arrow-circle-right'></i>",
+				"gotoFinalPanel": "<i class='fas fa-2x fa-angle-double-right'></i>",		
+				"gotoNextPage": "<i class='fas fa-step-forward'></i>",
+				"info": "<i class='fas fa-2x fa-info-circle'></i>",
+				"gotoPrevPage2x": "<i class='fas fa-2x fa-step-backward'></i>",
+				"gotoNextPage2x": "<i class='fas fa-2x fa-step-forward'></i>",
+				"viewWholePage2x": "<i class='fas fa-2x fa-compress'></i>"
+			}, 
+			"navigatorBtnId": { 
+				"gotoPrevPage": "nav-prev-page-btn-id",
+				"gotoFirstPanel": "nav-first-panel-btn-id",
+				"gotoPrevPanel": "nav-prev-panel-btn-id",
+				"viewWholePage": "nav-full-page-btn-id",
+				"gotoNextPanel": "nav-next-panel-btn-id",
+				"gotoFinalPanel": "nav-final-panel-btn-id",
+				"gotoNextPage": "nav-next-page-btn-id"
+			}
+		};
 
-	function initGlobalFunctions() {
+		let selfAppObject = this;
+
+		this.initPromises(appState, selfAppObject);
+
+		jQuery(function() {
+			selfAppObject.initApp(selfAppObject);
+		}.bind(selfAppObject));
+	}
+
+	initPromises(appState, selfAppObject) {
+		this.initGlobalState = new Promise( function(resolve, reject) {
+			if (appState.appHeight !== undefined) { selfAppObject.state.appHeight = appState.appHeight; } 
+			if (appState.comicDataUrl !== undefined) { selfAppObject.state.comicDataUrl = appState.comicDataUrl; } 
+			resolve("[INIT_GLOBAL_STATE]: Loaded new states.");
+		}.bind(selfAppObject));
+
+		this.initPageData = new Promise( function(resolve, reject) {
+			selfAppObject.state.comicData.title = "A comic book";
+			selfAppObject.state.comicData.author = "Jane Doe";
+			selfAppObject.state.comicData.currentPageIdx = 0;
+			selfAppObject.state.comicData.pages = {};
+			let parsedComicData = {};	// maybe rename variable
+			let jsonIsLoadedPromise = $.getJSON(selfAppObject.state.comicDataUrl);
+			jsonIsLoadedPromise.done(function(json) {
+				parsedComicData = json;
+				selfAppObject.state.comicData.pages = parsedComicData;
+				resolve("[INIT_PAGE_DATA]: Comic data (JSON) is loaded.");
+			});
+			jsonIsLoadedPromise.fail(function(jqxhr, textStatus, error) {
+				reject("[INIT_PAGE_DATA]: Error fetching comic data (JSON): " + textStatus + ", " + error);
+			});
+		}.bind(selfAppObject));
+	}
+
+	initGlobalFunctions(selfAppObject) {
 		/**
 		 * Returns element id without '#' at the front; 
 		 * TODO: maybe function name too similar to getElementById ???
 		 * @param {String} componentName Name of the component whose 'id' is to be found
 		 * @return {String} Element id without '#' at the beginning
 		 */
-		state.globalFunctions.getElementId = function (componentName) {
-			return elementIDs[componentName].substr(1);
+		selfAppObject.state.globalFunctions.getElementId = function (componentName) {
+			return selfAppObject.elementIDs[componentName].substr(1);
 		}
 
 		/**
@@ -590,78 +625,78 @@ function comicPanelNavigatorAppInit( appState ) {
 		 * @param {String} parentDomId Id of parent element to where new element is to appended
 		 * @param {*} elementObject HTML element object
 		 */
-		state.globalFunctions.appendElementObjectToDOM = function (parentDomId, elementObject) {
+		selfAppObject.state.globalFunctions.appendElementObjectToDOM = function (parentDomId, elementObject) {
 			let parentElem = document.getElementById(parentDomId);
 			parentElem.appendChild(elementObject);
 		}
 
-		state.globalFunctions.checkAndReturnPageIdx = function (pageIdx) {
+		selfAppObject.state.globalFunctions.checkAndReturnPageIdx = function (pageIdx) {
 			// check if page index is an acceptable value
 			if (pageIdx < 0) { pageIdx = 0; }
-			if (pageIdx > state.comicData.pages.length - 1) { pageIdx = state.comicData.pages.length - 1;}	// can be else if
+			if (pageIdx > selfAppObject.state.comicData.pages.length - 1) { pageIdx = selfAppObject.state.comicData.pages.length - 1;}	// can be else if
 			return pageIdx;
 		}
 
-		state.globalFunctions.gotoPage = function (pageIdx) {
-			state.comicData.currentPageIdx = state.globalFunctions.checkAndReturnPageIdx(pageIdx);
-			state.panelNavigatorHandler.currentPanelIdx = 0;
-			state.panelNavigatorHandler.loadNewPage(state.comicData.pages[state.comicData.currentPageIdx]);
-			state.panelNavigatorHandler.state.fullPageRequested = false;
-			state.panelNavigatorHandler.currentPanel.reset();
-			state.panelNavigatorHandler.gotoFirstPanel();
+		selfAppObject.state.globalFunctions.gotoPage = function (pageIdx) {
+			selfAppObject.state.comicData.currentPageIdx = selfAppObject.state.globalFunctions.checkAndReturnPageIdx(pageIdx);
+			selfAppObject.state.panelNavigatorHandler.currentPanelIdx = 0;
+			selfAppObject.state.panelNavigatorHandler.loadNewPage(selfAppObject.state.comicData.pages[selfAppObject.state.comicData.currentPageIdx]);
+			selfAppObject.state.panelNavigatorHandler.state.fullPageRequested = false;
+			selfAppObject.state.panelNavigatorHandler.currentPanel.reset();
+			selfAppObject.state.panelNavigatorHandler.gotoFirstPanel();
 		}
 
-		state.globalFunctions.gotoPreviousPage = function () {
-			let newPageIdx = state.comicData.currentPageIdx - 1;
-			state.globalFunctions.gotoPage(newPageIdx);
+		selfAppObject.state.globalFunctions.gotoPreviousPage = function () {
+			let newPageIdx = selfAppObject.state.comicData.currentPageIdx - 1;
+			selfAppObject.state.globalFunctions.gotoPage(newPageIdx);
 		}
 
-		state.globalFunctions.gotoNextPage = function () {
-			let newPageIdx = state.comicData.currentPageIdx + 1;
-			if (newPageIdx < state.comicData.pages.length) {
+		selfAppObject.state.globalFunctions.gotoNextPage = function () {
+			let newPageIdx = selfAppObject.state.comicData.currentPageIdx + 1;
+			if (newPageIdx < selfAppObject.state.comicData.pages.length) {
 				// goto new page only if next page exists
-				state.globalFunctions.gotoPage(newPageIdx);
+				selfAppObject.state.globalFunctions.gotoPage(newPageIdx);
 			}
 		}
 	};
 
-	function initAppEntryElem() {
-		let appEntryElem = document.getElementById(state.globalFunctions.getElementId("appEntry"));
+	initAppEntryElem() {
+		let appEntryElem = document.getElementById(this.state.globalFunctions.getElementId("appEntry"));
 		appEntryElem.className = "container-fluid no-gutters py-2";
 		appEntryElem.style.width = "100%";
 		//appEntryElem.style.backgroundImage = `url('${bgImageSrc}')`;	// uncomment for background image
 		appEntryElem.style.backgroundColor = "#111111";
-		appEntryElem.style.height = state.appHeight;
+		appEntryElem.style.height = this.state.appHeight;
 	}
 
-	function initDivs() {
-		initAppEntryElem();
-		state.navigationElem = createNavigationElem(state);
-		state.currentPanelIndicatorWrapperElem = createCurrentPanelIndicatorWrapperElem(state);
-		state.panelDisplayWrapperElem = createPanelDisplayWrapperElem(state);
-		state.helpModalElem = createHelpModalElem(state);
-		state.globalFunctions.appendElementObjectToDOM(state.globalFunctions.getElementId("appEntry"), state.navigationElem);
-		state.globalFunctions.appendElementObjectToDOM(state.globalFunctions.getElementId("appEntry"), state.currentPanelIndicatorWrapperElem);
-		state.globalFunctions.appendElementObjectToDOM(state.globalFunctions.getElementId("appEntry"), state.panelDisplayWrapperElem);
-		state.globalFunctions.appendElementObjectToDOM(state.globalFunctions.getElementId("appEntry"), state.helpModalElem);
+	initDivs(selfAppObject) {
+		selfAppObject.initAppEntryElem();
+		selfAppObject.state.navigationElem = createNavigationElem(selfAppObject.state);
+		selfAppObject.state.currentPanelIndicatorWrapperElem = createCurrentPanelIndicatorWrapperElem(selfAppObject.state);
+		selfAppObject.state.panelDisplayWrapperElem = createPanelDisplayWrapperElem(selfAppObject.state);
+		selfAppObject.state.helpModalElem = createHelpModalElem(selfAppObject.state);
+		selfAppObject.state.globalFunctions.appendElementObjectToDOM(selfAppObject.state.globalFunctions.getElementId("appEntry"), selfAppObject.state.navigationElem);
+		selfAppObject.state.globalFunctions.appendElementObjectToDOM(selfAppObject.state.globalFunctions.getElementId("appEntry"), selfAppObject.state.currentPanelIndicatorWrapperElem);
+		selfAppObject.state.globalFunctions.appendElementObjectToDOM(selfAppObject.state.globalFunctions.getElementId("appEntry"), selfAppObject.state.panelDisplayWrapperElem);
+		selfAppObject.state.globalFunctions.appendElementObjectToDOM(selfAppObject.state.globalFunctions.getElementId("appEntry"), selfAppObject.state.helpModalElem);
 	}
 
 	/** [NOT USED]
 	 * Parse and return data into suitable format (i.e. a list usually)
 	 */
-	function initData(jsonString) {
+	initData(jsonString) {
 		let dataParser = new DataParser();
 		let dataAsList = dataParser.parsePanelDataFromString(jsonString);
 		return dataAsList;
 	}
 	/* [NOT USED] */
-	function initComicData(jsonString) {
+	initComicData(jsonString) {
 		let parsedComicData = JSON.parse(jsonString);
 		return parsedComicData;
 	}
 
 	// [NOT USED] sets onload methods to various elements
-	function initOnloadMethods(navigationHandler) {
+	initOnloadMethods(navigationHandler) {
 		/*
 		let imageElem = document.getElementById(navigationHandler.state.panelDisplayImageElemId);
 		imageElem.onload = function(e) {
@@ -678,18 +713,18 @@ function comicPanelNavigatorAppInit( appState ) {
 	 * Right Arrow to goto the next Panel
 	 * @param {HandlerObject} navigationHandler Handler object that handles events within the app
 	 */
-	function initKeyBinding(navigationHandler) {
+	initKeyBinding(navigationHandler) {
 		document.addEventListener("keydown", event => {
 			let keyPressed = event.key;
 			if (keyPressed === "ArrowLeft") {
 				if (event.shiftKey) {
-					state.globalFunctions.gotoPreviousPage();
+					this.state.globalFunctions.gotoPreviousPage();
 				} else {
 					navigationHandler.gotoPrevPanel();
 				}
 			} else if (keyPressed === "ArrowRight") {
 				if (event.shiftKey) {
-					state.globalFunctions.gotoNextPage();
+					this.state.globalFunctions.gotoNextPage();
 				} else {
 					navigationHandler.gotoNextPanel();
 				}
@@ -700,7 +735,7 @@ function comicPanelNavigatorAppInit( appState ) {
 			} else if (keyPressed === "f") {
 				navigationHandler.gotoFullPageView();
 			} else if (keyPressed === "i") {
-				let openHelpModalButtonElemId = state.globalFunctions.getElementId("openHelpModalBtn");
+				let openHelpModalButtonElemId = this.state.globalFunctions.getElementId("openHelpModalBtn");
 				let openHelpModalButtonElem = document.getElementById(openHelpModalButtonElemId);
 				openHelpModalButtonElem.click();
 			}
@@ -714,72 +749,50 @@ function comicPanelNavigatorAppInit( appState ) {
 	 * or 'state.globalFunctions'
 	 * @param {HandlerObject} navigationHandler 
 	 */
-	function initNavigatorBinding(navigationHandler) {
-		document.getElementById(state.navigatorBtnId.gotoPrevPage).onclick = function() { state.globalFunctions.gotoPreviousPage(); };
-		document.getElementById(state.navigatorBtnId.gotoFirstPanel).onclick = function() { navigationHandler.gotoFirstPanel(); };
-		document.getElementById(state.navigatorBtnId.gotoPrevPanel).onclick = function() { navigationHandler.gotoPrevPanel(); };
-		document.getElementById(state.navigatorBtnId.viewWholePage).onclick = function() { navigationHandler.gotoFullPageView(); };
-		document.getElementById(state.navigatorBtnId.gotoNextPanel).onclick = function() { navigationHandler.gotoNextPanel(); };
-		document.getElementById(state.navigatorBtnId.gotoFinalPanel).onclick = function() { navigationHandler.gotoFinalPanel(); };
-		document.getElementById(state.navigatorBtnId.gotoNextPage).onclick = function() { state.globalFunctions.gotoNextPage(); };
+	initNavigatorBinding(navigationHandler) {
+		document.getElementById(this.state.navigatorBtnId.gotoPrevPage).onclick = function() { this.state.globalFunctions.gotoPreviousPage(); };
+		document.getElementById(this.state.navigatorBtnId.gotoFirstPanel).onclick = function() { navigationHandler.gotoFirstPanel(); };
+		document.getElementById(this.state.navigatorBtnId.gotoPrevPanel).onclick = function() { navigationHandler.gotoPrevPanel(); };
+		document.getElementById(this.state.navigatorBtnId.viewWholePage).onclick = function() { navigationHandler.gotoFullPageView(); };
+		document.getElementById(this.state.navigatorBtnId.gotoNextPanel).onclick = function() { navigationHandler.gotoNextPanel(); };
+		document.getElementById(this.state.navigatorBtnId.gotoFinalPanel).onclick = function() { navigationHandler.gotoFinalPanel(); };
+		document.getElementById(this.state.navigatorBtnId.gotoNextPage).onclick = function() { this.state.globalFunctions.gotoNextPage(); };
 	}
 
 	/**
 	 * Doesn't work; Reason:
 	 * bootstrap tooltip isn't guaranteed to work on hidden elements
 	 */
-	function initTooltips() {
+	initTooltips() {
 		//$(function () {	$('[data-toggle="tooltip"]').tooltip({});})
-		//state.globalFunctions.getElementId("helpModal")
-		$(`#${state.globalFunctions.getElementId("helpModal")}`).on('shown.bs.modal', function () {
+		//this.state.globalFunctions.getElementId("helpModal")
+		$(`#${this.state.globalFunctions.getElementId("helpModal")}`).on('shown.bs.modal', function () {
 			$('#myInput').trigger('focus');
 		});
 	}
 
-	let initPageData = new Promise( (resolve, reject) => {
-		state.comicData.title = "A comic book";
-		state.comicData.author = "Jane Doe";
-		state.comicData.currentPageIdx = 0;
-		state.comicData.pages = {};
-		let parsedComicData = {};	// maybe rename variable
-		let jsonIsLoadedPromise = $.getJSON(state.comicDataUrl);
-		jsonIsLoadedPromise.done(function(json) {
-			parsedComicData = json;
-			state.comicData.pages = parsedComicData;
-			resolve("[INIT_PAGE_DATA]: Comic data (JSON) is loaded.");
-		});
-		jsonIsLoadedPromise.fail(function(jqxhr, textStatus, error) {
-			reject("[INIT_PAGE_DATA]: Error fetching comic data (JSON): " + textStatus + ", " + error);
-		});
-	});
-
-	function initApp() {
-		initGlobalState.then( (initGlobalStateMsg) => {
+	initApp(selfAppObject) {
+		selfAppObject.initGlobalState.then( function(initGlobalStateMsg) {
 			console.log(initGlobalStateMsg);
-			initGlobalFunctions();
-			initPageData.then( (msg) => {
+			selfAppObject.initGlobalFunctions(selfAppObject);
+			selfAppObject.initPageData.then( function(msg) {
 				console.log(msg);
-				state.comicData.currentPageIdx = 0;	// delete me
-				initDivs();
-				state.panelNavigatorHandler = new PanelNavigatorHandler(state.comicData.pages[state.comicData.currentPageIdx].panelData, state);
-				initOnloadMethods(state.panelNavigatorHandler);
-				initTooltips();
-				initNavigatorBinding(state.panelNavigatorHandler);
-				initKeyBinding(state.panelNavigatorHandler);
-			}).catch( (err) => {
-				console.error(err);
+				selfAppObject.state.comicData.currentPageIdx = 0;	// delete me
+				selfAppObject.initDivs(selfAppObject);
+				selfAppObject.state.panelNavigatorHandler = new PanelNavigatorHandler(selfAppObject.state.comicData.pages[selfAppObject.state.comicData.currentPageIdx].panelData, selfAppObject.state);
+				selfAppObject.initOnloadMethods(selfAppObject.state.panelNavigatorHandler);
+				selfAppObject.initTooltips();
+				selfAppObject.initNavigatorBinding(selfAppObject.state.panelNavigatorHandler);
+				selfAppObject.initKeyBinding(selfAppObject.state.panelNavigatorHandler);
+			}.bind(selfAppObject)).catch( (err) => {
+				console.log(err);	//console.error(err);
 			});
-		} );
-		
+		}.bind(selfAppObject) );
 	}
-
-	jQuery(function() {
-		initApp();
-	});
 }
 
 /* App initialization example shown below */
-comicPanelNavigatorAppInit( {
+let comicPanelApp = new comicPanelNavigatorApp( {
 	"appHeight": "790px",	// height of the total app (740px normally)
 	"comicDataUrl": "http://192.168.0.67/assets/data/comic-data.php"
 } );
