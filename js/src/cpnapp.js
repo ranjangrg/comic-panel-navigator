@@ -10,9 +10,498 @@
  * 7. Mouse-click on panel (in full page view) to get to panel feature (Very user friendly)
  * 8. have page-turn like effect when page is turned/changed (visual indication of page turn)
  * 9. implement settings feature (+ select app height etc.)
+ * 10. Use global Class instead of scoped function (... in progress)
  */
 
 "use strict";
+
+class Block {
+	constructor(elementID) {
+		this.state = {
+			"elementID": elementID,
+			"DOMHtml": "",
+			"DOMTriggers" : {},
+			"DOMCss" : {},
+			"DOMClasses": {}
+		};
+	};
+
+	set DOMHtml(htmlString) {this.state.DOMHtml = htmlString;};
+	set DOMTriggers(DOMTriggers) {this.state.DOMTriggers = DOMTriggers;};
+	set DOMCss(DOMCss) {this.state.DOMCss = DOMCss;};
+	set DOMClasses(DOMClasses) {this.state.DOMClasses = DOMClasses;};
+
+	get elementID() { return this.state.elementID;};
+	get DOMHtml() { return this.state.DOMHtml;};
+	get DOMTriggers() { return this.state.DOMTriggers;};
+	get DOMCss() { return this.state.DOMCss; };
+	get DOMCssAsString() {	// parse this.DOMCss as string
+		let cssAsString = "";
+		for (let cssProperty in this.DOMCss) {
+			cssAsString += `${cssProperty}: ${this.DOMCss[cssProperty]};`;
+		}
+		return cssAsString;
+	}
+	get DOMClasses() {return this.state.DOMClasses;};
+
+	createElementObjectFromBlock() {
+		let blockElem = document.createElement("DIV");
+		blockElem.setAttribute("id", this.elementID);
+		blockElem.setAttribute("class", this.DOMClasses);
+		blockElem.setAttribute("style", this.DOMCssAsString);
+		blockElem.innerHTML = this.DOMHtml;
+		return blockElem;
+	}
+}
+
+class PanelDisplay {
+	constructor(panelData, globalState) {
+		this.globalState = globalState;
+		this.state = {
+			"panelData": {...panelData},
+			"panelOriginalData": {...panelData},	// copy content DONT assign directly (pointer seems the same)
+			"pageData": {"width": 0, "height": 0, "naturalWidth": 0, "naturalHeight": 0, "pageIdx": 0},
+			"targetHeight": 650,	// minimum/target height for each panel (in px)
+			"maxWidth": 1200,	// max width allowed (in px)
+			"padding": 32	// in px; NOT implemented yet
+		};
+		// normal windows laptop screen res: 1366 x 768
+		let imageElem = document.getElementById(this.globalState.globalFunctions.getElementId("panelDisplayImage"));
+		imageElem.onload = (function (thisPanelDataObj) {
+			return function(e) {
+				// update pageData within 'this' PanelDisplay object
+				thisPanelDataObj.state.pageData.width = this.naturalWidth;
+				thisPanelDataObj.state.pageData.height = this.naturalHeight;
+				thisPanelDataObj.state.pageData.naturalWidth = this.naturalWidth;
+				thisPanelDataObj.state.pageData.naturalHeight = this.naturalHeight;
+				thisPanelDataObj.changeDimensions();
+			};
+		})(this);
+	}
+	reset() {
+		this.state.panelData = {...this.state.panelOriginalData};
+		this.changeDimensions();
+	}
+	update(panelData) { // only used when panel dimension is modified e.g. zoom in etc
+		this.state.panelData = {...panelData};
+		this.state.panelOriginalData = {...panelData};
+		this.changeDimensions();
+	}
+	changeDimensions() {
+		let imageHolderElem = document.getElementById(this.globalState.globalFunctions.getElementId("panelDisplayImageHolder"));
+		let imageElem = document.getElementById(this.globalState.globalFunctions.getElementId("panelDisplayImage"));
+
+		this.state.panelData.height = this.state.targetHeight;
+		let scaleFactor = parseFloat(this.state.panelData.height) / parseFloat(this.state.panelOriginalData.height);
+
+		// check if new panel width fits into viewport
+		let widthOverflowDetected = (this.state.panelOriginalData.width * scaleFactor) > this.state.maxWidth;
+		if (widthOverflowDetected) { 
+			// recalculate dimensions (now based on 'width') so that new panel fits within viewport width
+			scaleFactor = parseFloat(this.state.maxWidth) / parseFloat(this.state.panelOriginalData.width);
+		}
+
+		this.state.panelData.width = (parseFloat(this.state.panelOriginalData.width) * scaleFactor).toString();
+		this.state.panelData.height = (parseFloat(this.state.panelOriginalData.height) * scaleFactor).toString();
+
+		imageHolderElem.style.width = `${this.state.panelData.width}px`;
+		imageHolderElem.style.height = `${this.state.panelData.height}px`;
+
+		// magnifying image itself
+		imageElem.width = this.state.pageData.naturalWidth * scaleFactor;
+		imageElem.height = this.state.pageData.naturalHeight * scaleFactor;
+
+		// offsetting image move/translate values
+		let newTranslateOffsetX = parseFloat(this.state.panelOriginalData.x) * scaleFactor;
+		let newTranslateOffsetY = parseFloat(this.state.panelOriginalData.y) * scaleFactor;
+		this.state.panelData.x = newTranslateOffsetX.toString();
+		this.state.panelData.y = newTranslateOffsetY.toString();
+	};
+}
+
+// only instantiate after all DOM is created and loaded
+class PanelNavigatorHandler {
+	constructor(panelLocationsAsList, globalState) {
+		this.globalState = globalState;
+		this.state = {
+			"panelDisplayWrapperElemId": this.globalState.globalFunctions.getElementId("panelDisplayWrapper"),
+			"panelDisplayImageHolderElemId": this.globalState.globalFunctions.getElementId("panelDisplayImageHolder"),
+			"panelDisplayImageElemId": this.globalState.globalFunctions.getElementId("panelDisplayImage"),
+			"navigatorWrapper": this.globalState.globalFunctions.getElementId("navigatorWrapper"),
+			"inputNavigator": this.globalState.globalFunctions.getElementId("inputNavigator"),
+			"currentPanelIndicatorWrapper": this.globalState.globalFunctions.getElementId("currentPanelIndicatorWrapper"),
+			"currentPanelIndicator": this.globalState.globalFunctions.getElementId("currentPanelIndicator"),
+			"panelLocations" : panelLocationsAsList,
+			"currentPanelIdx": 0,
+			"currentPanel": undefined,
+			"navigatorIsBeingUsed": false,
+			"fullPageIdxCode": -100,	// when panelIdx === this value, it means a full page view is requested
+			"fullPageRequested": false
+		}; 
+		this.initAutoHideTrigger();
+		this.initKeepNavigatorDisplayedTrigger();
+		this.state.currentPanel = new PanelDisplay(this.state.panelLocations[0], this.globalState);
+		this.gotoFirstPanel();
+	}
+
+	get currentPanel() {return this.state.currentPanel;}
+
+	loadNewPage(comicDataForCurrentPage) {
+		let imageElem = document.getElementById(this.state.panelDisplayImageElemId);
+		imageElem.src = comicDataForCurrentPage.pageUrl;	// change image src within image element
+		this.state.panelLocations = comicDataForCurrentPage.panelData;
+		this.state.currentPanelIdx = 0;	
+		this.state.currentPanel = new PanelDisplay(this.state.panelLocations[0], this.globalState);
+		this.gotoFirstPanel();
+	}
+
+	updateCurrentPanel(newPanelIdx) {
+		this.state.currentPanelIdx = this.checkPanelIdx(newPanelIdx);
+
+		if (this.state.fullPageRequested) {
+			let fullPageAsPanelData = {...this.state.panelLocations[0]};
+			fullPageAsPanelData.x = "0";
+			fullPageAsPanelData.y = "0";
+			fullPageAsPanelData.width = this.state.currentPanel.state.pageData.naturalWidth;
+			fullPageAsPanelData.height = this.state.currentPanel.state.pageData.naturalHeight;
+			this.state.currentPanel.update(fullPageAsPanelData);
+		} else {
+			this.state.currentPanel.update(this.state.panelLocations[this.state.currentPanelIdx]);
+		}
+		
+		// change panel indicator
+		let indicatorElem = document.getElementById(this.state.currentPanelIndicator);
+		if (indicatorElem) {
+			let newIndicatorText = "Page " + (this.globalState.comicData.currentPageIdx + 1) + " | Panel ";
+			newIndicatorText += (this.state.currentPanelIdx + 1).toString();
+			indicatorElem.innerText = newIndicatorText;
+		}
+		// change input indicator
+		let inputElem = document.getElementById(this.state.inputNavigator);
+		if (inputElem) {
+			inputElem.value = this.state.currentPanelIdx + 1;
+		}
+	};
+	checkPanelIdx(panelIdx) {
+		let newCurrentPageIdx = 0;
+		let oldCurrentPageIdx = 0;
+		// filter bad panelIdx values
+		if ( (panelIdx < 0) || (typeof(panelIdx) === "undefined") ) { 
+			// by this point, previous panel was requested while on the first panel, 
+			// so it is assumed that the user wants to goto the previous page
+			oldCurrentPageIdx = this.globalState.comicData.currentPageIdx;
+			this.globalState.globalFunctions.gotoPreviousPage();
+			newCurrentPageIdx = this.globalState.comicData.currentPageIdx;
+			if (oldCurrentPageIdx === newCurrentPageIdx) {
+				// this means that page hasn't changed, so dont change panel
+				panelIdx = 0;
+			} else {
+				// new page has changed, so move to the first panel
+				panelIdx = this.state.panelLocations.length - 1;
+			}
+		} 
+		if (panelIdx > this.state.panelLocations.length - 1) {
+			// goto new page if panelIdx exceeds panel count; MAYBE have option to either
+			// a. goto new page automatically OR
+			// b. stay in the same page 
+			//    BUT make sure: panelIdx = this.state.panelLocations.length - 1; 
+			//    to avoid panel list overflow with the new index
+			oldCurrentPageIdx = this.globalState.comicData.currentPageIdx;
+			this.globalState.globalFunctions.gotoNextPage();
+			newCurrentPageIdx = this.globalState.comicData.currentPageIdx;
+			if (oldCurrentPageIdx === newCurrentPageIdx) {
+				// this means that page hasn't changed, so dont change panel
+				panelIdx = this.state.panelLocations.length - 1;
+			} else {
+				// new page has changed, so move to the first panel
+				panelIdx = 0;
+			}
+		}
+		return panelIdx;
+	};
+	moveToPosition(offsetX, offsetY) {
+		let padding = parseInt(this.currentPanel.state.padding);
+		//let paddingCompensatedWidth = parseInt(offsetX) - padding;
+		//let paddingCompensatedHeight = parseInt(offsetY) - padding;
+		let imageElem = document.getElementById(this.state.panelDisplayImageElemId);
+		if (imageElem) {
+			imageElem.style.transform = `translate(-${offsetX}px, -${offsetY}px)`;
+		}
+	}
+	gotoPanel(panelIdx) {
+		this.updateCurrentPanel(panelIdx);
+		this.moveToPosition(this.currentPanel.state.panelData.x, this.currentPanel.state.panelData.y);
+	};
+	gotoPanelViaInput() {
+		// find number in input form first 
+		let inputElem = document.getElementById(this.state.inputNavigator);
+		if (inputElem) {
+			let requestedPanelIdx = inputElem.value - 1;
+			this.gotoPanel(requestedPanelIdx);
+		}
+	};
+	gotoFirstPanel() {
+		this.state.fullPageRequested = false;
+		this.gotoPanel(0);
+	};
+	gotoPrevPanel() {
+		this.state.fullPageRequested = false;
+		let newPanelIdx = this.state.currentPanelIdx - 1;
+		this.gotoPanel(newPanelIdx);
+	};
+	gotoNextPanel() {
+		this.state.fullPageRequested = false;
+		let newPanelIdx = this.state.currentPanelIdx + 1;
+		this.gotoPanel(newPanelIdx);
+	};
+	gotoFinalPanel() {
+		this.state.fullPageRequested = false;
+		this.gotoPanel(this.state.panelLocations.length - 1);
+	};
+	gotoFullPageView() {
+		this.state.fullPageRequested = !(this.state.fullPageRequested);	// flag this to true on 'this' scope 
+		this.gotoPanel(this.state.currentPanelIdx);	// !IMP: fullPageIdxCode indicates it is a full page view panel
+	};
+	initAutoHideTrigger() {
+		var selfHandlerObj = this;	// handler MUST be in scope for mouse events below
+		let navigatorWrapperElem = document.getElementById(this.state.navigatorWrapper);
+		let currentPanelIndicatorWrapperElem = document.getElementById(this.state.currentPanelIndicatorWrapper);
+		let imageElem = document.getElementById(this.state.panelDisplayImageElemId);
+		imageElem.onmousemove = function(event) {
+			// show navigator when mouse pointer is moved inside the panel display element
+			// BUT hide it after certain time e.g. 2sec or 2000ms
+			if (navigatorWrapperElem.style.display) {
+				setTimeout(function() {
+					if ( !(selfHandlerObj.state.navigatorIsBeingUsed) ) { navigatorWrapperElem.style.display = "none";}
+				}, 2000);
+			}
+			if (currentPanelIndicatorWrapperElem.style.display) {
+				setTimeout(function() {
+					if ( !(selfHandlerObj.state.navigatorIsBeingUsed) ) { currentPanelIndicatorWrapperElem.style.display = "none"; }
+				}, 2000);
+			}
+			navigatorWrapperElem.style.display = "";
+			currentPanelIndicatorWrapperElem.style.display = "";
+		};
+	}
+	initKeepNavigatorDisplayedTrigger() {
+		var selfHandlerObj = this;	// handler MUST be in scope for mouse events below
+		let navigatorWrapperElem = document.getElementById(this.state.navigatorWrapper);
+		let currentPanelIndicatorWrapperElem = document.getElementById(this.state.currentPanelIndicatorWrapper);
+		navigatorWrapperElem.onmouseover = function(event) {
+			// show navigator when mouse pointer is within navigator element
+			selfHandlerObj.state.navigatorIsBeingUsed = true;
+			if (navigatorWrapperElem.style.display) { navigatorWrapperElem.style.display = ""; }
+			if (currentPanelIndicatorWrapperElem.style.display) { currentPanelIndicatorWrapperElem.style.display = ""; }
+		};
+		navigatorWrapperElem.onmouseout = function(event) {
+			// hide navigator when mouse pointer is out of nvaigator element
+			selfHandlerObj.state.navigatorIsBeingUsed = false;
+			if (navigatorWrapperElem.style.display === '') { navigatorWrapperElem.style.display = "none"; }
+			if (currentPanelIndicatorWrapperElem.style.display === '') { currentPanelIndicatorWrapperElem.style.display = "none"; }
+		};
+	}
+};
+
+/**
+ * DataParser class contains methods to parse data into suitable formats
+ */
+class DataParser {
+	constructor() {}
+	/** 
+	 * Returns Array of panel-data from a JSON object 
+	 * @param {JSON} jsonObj JSON object to parse
+	 * @return {Array} the JSON obj as an Array
+	 */
+	parseListFromJson(jsonObj) {
+		let keyList = Object.keys(jsonObj);
+		let panelCount = keyList.length;
+		let panelDataArr = new Array(panelCount);
+		for (let idx = 0; idx < panelCount; ++idx) {
+			panelDataArr[idx] = jsonObj[keyList[idx]];
+		}
+		return panelDataArr;
+	}
+
+	/** 
+	 * Return panel-data from a stringified JSON
+	 * @param {String} jsonString data as string
+	 * @return {Array} the panel-data parsed from the provided string
+	 */
+	parsePanelDataFromString(jsonString) {
+		let jsonObj = JSON.parse(jsonString);
+		let panelData = this.parseListFromJson(jsonObj);
+		return panelData;
+	}
+}
+
+function createNavigationElem(globalState) {
+	let navigationBlock = new Block(globalState.globalFunctions.getElementId("navigatorWrapper"));
+	navigationBlock.DOMCss = { 
+		"display": "none",	// hide whole block
+		"width": "100%",
+		"position": "absolute",
+		"left": "0%",
+		//"background-color": "rgba(0,0,0,0.5)",
+		"background-image": "linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.3), rgba(0,0,0,0.5), rgba(0,0,0,0.7))",
+		"overflow": "hidden",
+		"text-shadow": "-1px -1px 0 #000, 1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000",	// sharpens icons
+		"z-index": "5"
+	};
+	navigationBlock.DOMClasses = "row no-gutters pt-1";
+	const navigationHandlerName = "state.panelNavigatorHandler";	// name of the handler object; handler should be created after DOM is created
+
+	navigationBlock.DOMHtml = 
+	`<div class="container-fluid no-gutters">
+		<div id="${globalState.globalFunctions.getElementId("inputNavigatorWrapper")}" class="row no-gutters justify-content-center"> 
+			<form class="form-inline" style="display: none">
+				<div class="form-group row mx-sm-3 mb-2">
+					<input type="number" class="form-control" id="${globalState.globalFunctions.getElementId("inputNavigator")}" value="1" placeholder="Panel">	
+				</div>
+				<button type="button" class="btn btn-primary mb-2 form-control" onclick="${navigationHandlerName}.gotoPanelViaInput()"> Goto Panel </button>
+			</form>
+		</div>
+		<div id="${globalState.globalFunctions.getElementId("symbolNavigator")}" class="row no-gutters justify-content-center">
+			<form class="form-inline">
+				<button id="${globalState.navigatorBtnId.gotoPrevPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Page (Shift + &larr;)"> ${globalState.symbolCodesForNavigator.gotoPrevPage} </button>
+				<button id="${globalState.navigatorBtnId.gotoFirstPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to First Panel (home)"> ${globalState.symbolCodesForNavigator.gotoFirstPanel} </button> &nbsp;
+				<button id="${globalState.navigatorBtnId.gotoPrevPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Panel (&larr;)"> ${globalState.symbolCodesForNavigator.gotoPrevPanel} </button> &nbsp;
+				<button id="${globalState.navigatorBtnId.viewWholePage}" type="button" class="btn btn-lg mb-2 text-light"  data-toggle="tooltip" title="View Whole Page (f)"> ${globalState.symbolCodesForNavigator.viewWholePage}</button>
+				<button id="${globalState.navigatorBtnId.gotoNextPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Next Panel (&rarr;)"> ${globalState.symbolCodesForNavigator.gotoNextPanel} </button> &nbsp;
+				<button id="${globalState.navigatorBtnId.gotoFinalPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Final Panel (end)"> ${globalState.symbolCodesForNavigator.gotoFinalPanel} </button>
+				<button id="${globalState.navigatorBtnId.gotoNextPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Next Page (Shift + &rarr;)"> ${globalState.symbolCodesForNavigator.gotoNextPage} </button>
+			</form>
+		</div>
+	</div>`;
+	let navigationElem = navigationBlock.createElementObjectFromBlock();
+	return navigationElem;
+}
+
+function createCurrentPanelIndicatorWrapperElem(globalState) {
+	let currentPanelIndicatorWrapperBlock = new Block(globalState.globalFunctions.getElementId("currentPanelIndicatorWrapper"));
+	currentPanelIndicatorWrapperBlock.DOMCss = { 
+		"z-index": "4",
+		"display": "none",
+		"position": "absolute",
+		"overflow": "hidden"
+	};
+	currentPanelIndicatorWrapperBlock.DOMClasses = "row no-gutters h4 justify-content-center text-white";
+	currentPanelIndicatorWrapperBlock.DOMHtml = `<span id="${globalState.globalFunctions.getElementId("currentPanelIndicator")}"> - </span>`;
+	let currentPanelIndicatorWrapperElem = currentPanelIndicatorWrapperBlock.createElementObjectFromBlock();
+	return currentPanelIndicatorWrapperElem;
+}
+
+function createPanelDisplayWrapperElem(globalState) {
+	let imageUrl = globalState.comicData.pages[globalState.comicData.currentPageIdx].pageUrl;
+	let panelDisplayWrapperBlock = new Block(globalState.globalFunctions.getElementId("panelDisplayWrapper")); 
+	panelDisplayWrapperBlock.DOMClasses = "row no-gutters justify-content-center pt-5";
+	let panelDisplayImageStyle = "z-index: 1;transition-duration: 0.5s; transition-timing-function: ease-in;";	// set animation for panel transition
+	let panelDisplayImageHolderStyle = 
+		`overflow: hidden; 
+		z-index: 5;
+		${panelDisplayImageStyle};`// set animation for panel transition
+		//border-radius: 2em;`;		// to enable rounded corners for panel
+	panelDisplayWrapperBlock.DOMHtml = 
+	`<div id="${globalState.globalFunctions.getElementId("panelDisplayImageHolder")}" style="${panelDisplayImageHolderStyle}">
+		<img 
+			id="${globalState.globalFunctions.getElementId("panelDisplayImage")}" 
+			class="no-resize"
+			src="${imageUrl}"
+			style="${panelDisplayImageStyle}"
+			width="auto" >
+	</div>`;
+	let panelDisplayWrapperElem = panelDisplayWrapperBlock.createElementObjectFromBlock();
+	return panelDisplayWrapperElem;
+}
+
+function createHelpModalElem(globalState) {
+	let helpModalBlock = new Block(globalState.globalFunctions.getElementId("helpModalWrapper"));
+	helpModalBlock.DOMCss = {};
+	helpModalBlock.DOMClasses = "";
+	let useSerifStyle = "font-family: serif;";
+	helpModalBlock.DOMHtml = 
+	`<form class="form-inline">
+		<button type="button" class="btn btn-lg mb-2 text-light" title="Show help" data-toggle="modal" 
+			id="${globalState.globalFunctions.getElementId("openHelpModalBtn")}" 
+			data-target="#${globalState.globalFunctions.getElementId("helpModal")}"
+			style="position:fixed; bottom: 0; z-index: 6;">
+			${globalState.symbolCodesForNavigator.info} 
+		</button>
+	</form>
+	<div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="Help" aria-hidden="true"
+		id="${globalState.globalFunctions.getElementId("helpModal")}" >
+		<div class="modal-dialog modal-lg" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">How to use Comic Viewer?</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<p> You can use the viewer either through your mouse or your keyboard. </p>
+					<div class="card">
+						<div class="card-header text-center">
+							Using your keyboard <i class="far fa-keyboard"></i>
+						</div>
+						<div class="card-body">
+							<p class="card-text"> 
+								You can navigate through panels using your keyboard. Here are some useful keys: 
+								<dl class="row">
+									<dt class="col-sm-3"> Left Arrow </dt> <dd class="col-sm-9"> Go to previous panel.</dd>
+									<dt class="col-sm-3"> Right Arrow </dt> <dd class="col-sm-9"> Go to next panel.</dd>
+									<dt class="col-sm-3"> Home key </dt> <dd class="col-sm-9"> Go to the first panel.</dd>
+									<dt class="col-sm-3"> End key </dt> <dd class="col-sm-9"> Go to the final panel.</dd>
+									<dt class="col-sm-3"> Shift + Left Arrow </dt> <dd class="col-sm-9"> Go to previous page.</dd>
+									<dt class="col-sm-3"> Shift + Right Arrow </dt> <dd class="col-sm-9"> Go to next page.</dd>
+									<dt class="col-sm-3" style="${useSerifStyle}"> F </dt> <dd class="col-sm-9"> Toggle full page view. </dd>
+									<dt class="col-sm-3" style="${useSerifStyle}"> I </dt> <dd class="col-sm-9"> Open (and close) this help box. </dd>
+								</dl>
+							</p>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header text-center">
+							Using your mouse <i class="fas fa-mouse"></i>
+						</div>
+						<div class="card-body">
+							<p class="card-text"> 
+								Hover the mouse pointer over the panel to bring up the panel navigator menu. 
+								Each button is explained below.
+								<dl class="row">
+									<dt class="col-sm-3"> ${globalState.symbolCodesForNavigator.gotoFirstPanel}  </dt> <dd class="col-sm-9"> Go to the first panel. </dd>
+									<dt class="col-sm-3"> ${globalState.symbolCodesForNavigator.gotoPrevPanel} </dt> <dd class="col-sm-9"> Go to previous panel.</dd>
+									<dt class="col-sm-3"> ${globalState.symbolCodesForNavigator.gotoNextPanel} </dt> <dd class="col-sm-9"> Go to next panel.</dd>
+									<dt class="col-sm-3"> ${globalState.symbolCodesForNavigator.gotoFinalPanel} </dt> <dd class="col-sm-9"> Go to the final panel.</dd>
+									<dt class="col-sm-3"> ${globalState.symbolCodesForNavigator.gotoPrevPage2x} </dt> <dd class="col-sm-9"> Turn to previous page.</dd>
+									<dt class="col-sm-3"> ${globalState.symbolCodesForNavigator.gotoNextPage2x} </dt> <dd class="col-sm-9"> Turn to next page.</dd>
+									<dt class="col-sm-3"> ${globalState.symbolCodesForNavigator.viewWholePage2x} </dt> <dd class="col-sm-9"> Toggle full page view.</dd>
+									<dt class="col-sm-3"> ${globalState.symbolCodesForNavigator.info} </dt> <dd class="col-sm-9"> Open (and close) this help box. </dd>
+								</dl>
+							</p>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<div class="card-footer text-muted">
+						<span class="text-info"> Note 1: </span> <small> The panel navigator menu will disappear after about 2 seconds of mouse inactivity. Move the pointer again to bring up the menu.
+						However, keeping the pointer on the menu itself will prevent it from disappearing automatically. </small>
+					</div>
+					<div class="card-footer text-muted">
+						<span class="text-info"> Note 2: </span> <small> Going to previous panel while on the first panel of the page will take 
+						you to the last panel of the previous page (if any). Similarly, going to the next panel while on the last panel 
+						of the page, will take you to the first panel of the next page (if any). </small>
+					</div>
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+					<button type="button" class="btn btn-primary" title="TODO: link to help page">More info </button>
+				</div>
+			</div>
+		</div>
+	</div>`;
+	let helpModalElem = helpModalBlock.createElementObjectFromBlock();
+	helpModalElem.tablIndex = "-1";
+	return helpModalElem;
+}
 
 function comicPanelNavigatorAppInit( appState ) {
 	/* elements' ID list: dictates what to name each DOM elements */
@@ -136,491 +625,6 @@ function comicPanelNavigatorAppInit( appState ) {
 		}
 	};
 
-	class Block {
-		constructor(elementID) {
-			this.state = {
-				"elementID": elementID,
-				"DOMHtml": "",
-				"DOMTriggers" : {},
-				"DOMCss" : {},
-				"DOMClasses": {}
-			};
-		};
-
-		set DOMHtml(htmlString) {this.state.DOMHtml = htmlString;};
-		set DOMTriggers(DOMTriggers) {this.state.DOMTriggers = DOMTriggers;};
-		set DOMCss(DOMCss) {this.state.DOMCss = DOMCss;};
-		set DOMClasses(DOMClasses) {this.state.DOMClasses = DOMClasses;};
-
-		get elementID() { return this.state.elementID;};
-		get DOMHtml() { return this.state.DOMHtml;};
-		get DOMTriggers() { return this.state.DOMTriggers;};
-		get DOMCss() { return this.state.DOMCss; };
-		get DOMCssAsString() {	// parse this.DOMCss as string
-			let cssAsString = "";
-			for (let cssProperty in this.DOMCss) {
-				cssAsString += `${cssProperty}: ${this.DOMCss[cssProperty]};`;
-			}
-			return cssAsString;
-		}
-		get DOMClasses() {return this.state.DOMClasses;};
-
-		createElementObjectFromBlock() {
-			let blockElem = document.createElement("DIV");
-			blockElem.setAttribute("id", this.elementID);
-			blockElem.setAttribute("class", this.DOMClasses);
-			blockElem.setAttribute("style", this.DOMCssAsString);
-			blockElem.innerHTML = this.DOMHtml;
-			return blockElem;
-		}
-	}
-
-	class PanelDisplay {
-		constructor(panelData) {
-			this.state = {
-				"panelData": {...panelData},
-				"panelOriginalData": {...panelData},	// copy content DONT assign directly (pointer seems the same)
-				"pageData": {"width": 0, "height": 0, "naturalWidth": 0, "naturalHeight": 0, "pageIdx": 0},
-				"targetHeight": 650,	// minimum/target height for each panel (in px)
-				"maxWidth": 1200,	// max width allowed (in px)
-				"padding": 32	// in px; NOT implemented yet
-			};
-			// normal windows laptop screen res: 1366 x 768
-			let imageElem = document.getElementById(state.globalFunctions.getElementId("panelDisplayImage"));
-			imageElem.onload = (function (thisPanelDataObj) {
-				return function(e) {
-					// update pageData within 'this' PanelDisplay object
-					thisPanelDataObj.state.pageData.width = this.naturalWidth;
-					thisPanelDataObj.state.pageData.height = this.naturalHeight;
-					thisPanelDataObj.state.pageData.naturalWidth = this.naturalWidth;
-					thisPanelDataObj.state.pageData.naturalHeight = this.naturalHeight;
-					thisPanelDataObj.changeDimensions();
-				};
-			})(this);
-		}
-		reset() {
-			this.state.panelData = {...this.state.panelOriginalData};
-			this.changeDimensions();
-		}
-		update(panelData) { // only used when panel dimension is modified e.g. zoom in etc
-			this.state.panelData = {...panelData};
-			this.state.panelOriginalData = {...panelData};
-			this.changeDimensions();
-		}
-		changeDimensions() {
-			let imageHolderElem = document.getElementById(state.globalFunctions.getElementId("panelDisplayImageHolder"));
-			let imageElem = document.getElementById(state.globalFunctions.getElementId("panelDisplayImage"));
-
-			this.state.panelData.height = this.state.targetHeight;
-			let scaleFactor = parseFloat(this.state.panelData.height) / parseFloat(this.state.panelOriginalData.height);
-
-			// check if new panel width fits into viewport
-			let widthOverflowDetected = (this.state.panelOriginalData.width * scaleFactor) > this.state.maxWidth;
-			if (widthOverflowDetected) { 
-				// recalculate dimensions (now based on 'width') so that new panel fits within viewport width
-				scaleFactor = parseFloat(this.state.maxWidth) / parseFloat(this.state.panelOriginalData.width);
-			}
-
-			this.state.panelData.width = (parseFloat(this.state.panelOriginalData.width) * scaleFactor).toString();
-			this.state.panelData.height = (parseFloat(this.state.panelOriginalData.height) * scaleFactor).toString();
-
-			imageHolderElem.style.width = `${this.state.panelData.width}px`;
-			imageHolderElem.style.height = `${this.state.panelData.height}px`;
-
-			// magnifying image itself
-			imageElem.width = this.state.pageData.naturalWidth * scaleFactor;
-			imageElem.height = this.state.pageData.naturalHeight * scaleFactor;
-
-			// offsetting image move/translate values
-			let newTranslateOffsetX = parseFloat(this.state.panelOriginalData.x) * scaleFactor;
-			let newTranslateOffsetY = parseFloat(this.state.panelOriginalData.y) * scaleFactor;
-			this.state.panelData.x = newTranslateOffsetX.toString();
-			this.state.panelData.y = newTranslateOffsetY.toString();
-		};
-	}
-
-	// only instantiate after all DOM is created and loaded
-	class PanelNavigatorHandler {
-		constructor(panelLocationsAsList) {
-			this.state = {
-				"panelDisplayWrapperElemId": state.globalFunctions.getElementId("panelDisplayWrapper"),
-				"panelDisplayImageHolderElemId": state.globalFunctions.getElementId("panelDisplayImageHolder"),
-				"panelDisplayImageElemId": state.globalFunctions.getElementId("panelDisplayImage"),
-				"navigatorWrapper": state.globalFunctions.getElementId("navigatorWrapper"),
-				"inputNavigator": state.globalFunctions.getElementId("inputNavigator"),
-				"currentPanelIndicatorWrapper": state.globalFunctions.getElementId("currentPanelIndicatorWrapper"),
-				"currentPanelIndicator": state.globalFunctions.getElementId("currentPanelIndicator"),
-				"panelLocations" : panelLocationsAsList,
-				"currentPanelIdx": 0,
-				"currentPanel": undefined,
-				"navigatorIsBeingUsed": false,
-				"fullPageIdxCode": -100,	// when panelIdx === this value, it means a full page view is requested
-				"fullPageRequested": false
-			}; 
-			this.initAutoHideTrigger();
-			this.initKeepNavigatorDisplayedTrigger();
-			this.state.currentPanel = new PanelDisplay(this.state.panelLocations[0]);
-			this.gotoFirstPanel();
-		}
-
-		get currentPanel() {return this.state.currentPanel;}
-
-		loadNewPage(comicDataForCurrentPage) {
-			let imageElem = document.getElementById(this.state.panelDisplayImageElemId);
-			imageElem.src = comicDataForCurrentPage.pageUrl;	// change image src within image element
-			this.state.panelLocations = comicDataForCurrentPage.panelData;
-			this.state.currentPanelIdx = 0;	
-			this.state.currentPanel = new PanelDisplay(this.state.panelLocations[0]);
-			this.gotoFirstPanel();
-		}
-
-		updateCurrentPanel(newPanelIdx) {
-			this.state.currentPanelIdx = this.checkPanelIdx(newPanelIdx);
-
-			if (this.state.fullPageRequested) {
-				let fullPageAsPanelData = {...this.state.panelLocations[0]};
-				fullPageAsPanelData.x = "0";
-				fullPageAsPanelData.y = "0";
-				fullPageAsPanelData.width = this.state.currentPanel.state.pageData.naturalWidth;
-				fullPageAsPanelData.height = this.state.currentPanel.state.pageData.naturalHeight;
-				this.state.currentPanel.update(fullPageAsPanelData);
-			} else {
-				this.state.currentPanel.update(this.state.panelLocations[this.state.currentPanelIdx]);
-			}
-			
-			// change panel indicator
-			let indicatorElem = document.getElementById(this.state.currentPanelIndicator);
-			if (indicatorElem) {
-				let newIndicatorText = "Page " + (state.comicData.currentPageIdx + 1) + " | Panel ";
-				newIndicatorText += (this.state.currentPanelIdx + 1).toString();
-				indicatorElem.innerText = newIndicatorText;
-			}
-			// change input indicator
-			let inputElem = document.getElementById(this.state.inputNavigator);
-			if (inputElem) {
-				inputElem.value = this.state.currentPanelIdx + 1;
-			}
-		};
-		checkPanelIdx(panelIdx) {
-			let newCurrentPageIdx = 0;
-			let oldCurrentPageIdx = 0;
-			// filter bad panelIdx values
-			if ( (panelIdx < 0) || (typeof(panelIdx) === "undefined") ) { 
-				// by this point, previous panel was requested while on the first panel, 
-				// so it is assumed that the user wants to goto the previous page
-				oldCurrentPageIdx = state.comicData.currentPageIdx;
-				state.globalFunctions.gotoPreviousPage();
-				newCurrentPageIdx = state.comicData.currentPageIdx;
-				if (oldCurrentPageIdx === newCurrentPageIdx) {
-					// this means that page hasn't changed, so dont change panel
-					panelIdx = 0;
-				} else {
-					// new page has changed, so move to the first panel
-					panelIdx = this.state.panelLocations.length - 1;
-				}
-			} 
-			if (panelIdx > this.state.panelLocations.length - 1) {
-				// goto new page if panelIdx exceeds panel count; MAYBE have option to either
-				// a. goto new page automatically OR
-				// b. stay in the same page 
-				//    BUT make sure: panelIdx = this.state.panelLocations.length - 1; 
-				//    to avoid panel list overflow with the new index
-				oldCurrentPageIdx = state.comicData.currentPageIdx;
-				state.globalFunctions.gotoNextPage();
-				newCurrentPageIdx = state.comicData.currentPageIdx;
-				if (oldCurrentPageIdx === newCurrentPageIdx) {
-					// this means that page hasn't changed, so dont change panel
-					panelIdx = this.state.panelLocations.length - 1;
-				} else {
-					// new page has changed, so move to the first panel
-					panelIdx = 0;
-				}
-			}
-			return panelIdx;
-		};
-		moveToPosition(offsetX, offsetY) {
-			let padding = parseInt(this.currentPanel.state.padding);
-			//let paddingCompensatedWidth = parseInt(offsetX) - padding;
-			//let paddingCompensatedHeight = parseInt(offsetY) - padding;
-			let imageElem = document.getElementById(this.state.panelDisplayImageElemId);
-			if (imageElem) {
-				imageElem.style.transform = `translate(-${offsetX}px, -${offsetY}px)`;
-			}
-		}
-		gotoPanel(panelIdx) {
-			this.updateCurrentPanel(panelIdx);
-			this.moveToPosition(this.currentPanel.state.panelData.x, this.currentPanel.state.panelData.y);
-		};
-		gotoPanelViaInput() {
-			// find number in input form first 
-			let inputElem = document.getElementById(this.state.inputNavigator);
-			if (inputElem) {
-				let requestedPanelIdx = inputElem.value - 1;
-				this.gotoPanel(requestedPanelIdx);
-			}
-		};
-		gotoFirstPanel() {
-			this.state.fullPageRequested = false;
-			this.gotoPanel(0);
-		};
-		gotoPrevPanel() {
-			this.state.fullPageRequested = false;
-			let newPanelIdx = this.state.currentPanelIdx - 1;
-			this.gotoPanel(newPanelIdx);
-		};
-		gotoNextPanel() {
-			this.state.fullPageRequested = false;
-			let newPanelIdx = this.state.currentPanelIdx + 1;
-			this.gotoPanel(newPanelIdx);
-		};
-		gotoFinalPanel() {
-			this.state.fullPageRequested = false;
-			this.gotoPanel(this.state.panelLocations.length - 1);
-		};
-		gotoFullPageView() {
-			this.state.fullPageRequested = !(this.state.fullPageRequested);	// flag this to true on 'this' scope 
-			this.gotoPanel(this.state.currentPanelIdx);	// !IMP: fullPageIdxCode indicates it is a full page view panel
-		};
-		initAutoHideTrigger() {
-			var selfHandlerObj = this;	// handler MUST be in scope for mouse events below
-			let navigatorWrapperElem = document.getElementById(this.state.navigatorWrapper);
-			let currentPanelIndicatorWrapperElem = document.getElementById(this.state.currentPanelIndicatorWrapper);
-			let imageElem = document.getElementById(this.state.panelDisplayImageElemId);
-			imageElem.onmousemove = function(event) {
-				// show navigator when mouse pointer is moved inside the panel display element
-				// BUT hide it after certain time e.g. 2sec or 2000ms
-				if (navigatorWrapperElem.style.display) {
-					setTimeout(function() {
-						if ( !(selfHandlerObj.state.navigatorIsBeingUsed) ) { navigatorWrapperElem.style.display = "none";}
-					}, 2000);
-				}
-				if (currentPanelIndicatorWrapperElem.style.display) {
-					setTimeout(function() {
-						if ( !(selfHandlerObj.state.navigatorIsBeingUsed) ) { currentPanelIndicatorWrapperElem.style.display = "none"; }
-					}, 2000);
-				}
-				navigatorWrapperElem.style.display = "";
-				currentPanelIndicatorWrapperElem.style.display = "";
-			};
-		}
-		initKeepNavigatorDisplayedTrigger() {
-			var selfHandlerObj = this;	// handler MUST be in scope for mouse events below
-			let navigatorWrapperElem = document.getElementById(this.state.navigatorWrapper);
-			let currentPanelIndicatorWrapperElem = document.getElementById(this.state.currentPanelIndicatorWrapper);
-			navigatorWrapperElem.onmouseover = function(event) {
-				// show navigator when mouse pointer is within navigator element
-				selfHandlerObj.state.navigatorIsBeingUsed = true;
-				if (navigatorWrapperElem.style.display) { navigatorWrapperElem.style.display = ""; }
-				if (currentPanelIndicatorWrapperElem.style.display) { currentPanelIndicatorWrapperElem.style.display = ""; }
-			};
-			navigatorWrapperElem.onmouseout = function(event) {
-				// hide navigator when mouse pointer is out of nvaigator element
-				selfHandlerObj.state.navigatorIsBeingUsed = false;
-				if (navigatorWrapperElem.style.display === '') { navigatorWrapperElem.style.display = "none"; }
-				if (currentPanelIndicatorWrapperElem.style.display === '') { currentPanelIndicatorWrapperElem.style.display = "none"; }
-			};
-		}
-	};
-
-	/**
-	 * DataParser class contains methods to parse data into suitable formats
-	 */
-	class DataParser {
-		constructor() {}
-		/** 
-		 * Returns Array of panel-data from a JSON object 
-		 * @param {JSON} jsonObj JSON object to parse
-		 * @return {Array} the JSON obj as an Array
-		 */
-		parseListFromJson(jsonObj) {
-			let keyList = Object.keys(jsonObj);
-			let panelCount = keyList.length;
-			let panelDataArr = new Array(panelCount);
-			for (let idx = 0; idx < panelCount; ++idx) {
-				panelDataArr[idx] = jsonObj[keyList[idx]];
-			}
-			return panelDataArr;
-		}
-
-		/** 
-		 * Return panel-data from a stringified JSON
-		 * @param {String} jsonString data as string
-		 * @return {Array} the panel-data parsed from the provided string
-		 */
-		parsePanelDataFromString(jsonString) {
-			let jsonObj = JSON.parse(jsonString);
-			let panelData = this.parseListFromJson(jsonObj);
-			return panelData;
-		}
-	}
-
-	function createNavigationElem() {
-		let navigationBlock = new Block(state.globalFunctions.getElementId("navigatorWrapper"));
-		navigationBlock.DOMCss = { 
-			"display": "none",	// hide whole block
-			"width": "100%",
-			"position": "absolute",
-			"left": "0%",
-			//"background-color": "rgba(0,0,0,0.5)",
-			"background-image": "linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.3), rgba(0,0,0,0.5), rgba(0,0,0,0.7))",
-			"overflow": "hidden",
-			"text-shadow": "-1px -1px 0 #000, 1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000",	// sharpens icons
-			"z-index": "5"
-		};
-		navigationBlock.DOMClasses = "row no-gutters pt-1";
-		const navigationHandlerName = "state.panelNavigatorHandler";	// name of the handler object; handler should be created after DOM is created
-
-		navigationBlock.DOMHtml = 
-		`<div class="container-fluid no-gutters">
-			<div id="${state.globalFunctions.getElementId("inputNavigatorWrapper")}" class="row no-gutters justify-content-center"> 
-				<form class="form-inline" style="display: none">
-					<div class="form-group row mx-sm-3 mb-2">
-						<input type="number" class="form-control" id="${state.globalFunctions.getElementId("inputNavigator")}" value="1" placeholder="Panel">	
-					</div>
-					<button type="button" class="btn btn-primary mb-2 form-control" onclick="${navigationHandlerName}.gotoPanelViaInput()"> Goto Panel </button>
-				</form>
-			</div>
-			<div id="${state.globalFunctions.getElementId("symbolNavigator")}" class="row no-gutters justify-content-center">
-				<form class="form-inline">
-					<button id="${state.navigatorBtnId.gotoPrevPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Page (Shift + &larr;)"> ${state.symbolCodesForNavigator.gotoPrevPage} </button>
-					<button id="${state.navigatorBtnId.gotoFirstPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to First Panel (home)"> ${state.symbolCodesForNavigator.gotoFirstPanel} </button> &nbsp;
-					<button id="${state.navigatorBtnId.gotoPrevPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Panel (&larr;)"> ${state.symbolCodesForNavigator.gotoPrevPanel} </button> &nbsp;
-					<button id="${state.navigatorBtnId.viewWholePage}" type="button" class="btn btn-lg mb-2 text-light"  data-toggle="tooltip" title="View Whole Page (f)"> ${state.symbolCodesForNavigator.viewWholePage}</button>
-					<button id="${state.navigatorBtnId.gotoNextPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Next Panel (&rarr;)"> ${state.symbolCodesForNavigator.gotoNextPanel} </button> &nbsp;
-					<button id="${state.navigatorBtnId.gotoFinalPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Final Panel (end)"> ${state.symbolCodesForNavigator.gotoFinalPanel} </button>
-					<button id="${state.navigatorBtnId.gotoNextPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Next Page (Shift + &rarr;)"> ${state.symbolCodesForNavigator.gotoNextPage} </button>
-				</form>
-			</div>
-		</div>`;
-		let navigationElem = navigationBlock.createElementObjectFromBlock();
-		return navigationElem;
-	}
-
-	function createCurrentPanelIndicatorWrapperElem() {
-		let currentPanelIndicatorWrapperBlock = new Block(state.globalFunctions.getElementId("currentPanelIndicatorWrapper"));
-		currentPanelIndicatorWrapperBlock.DOMCss = { 
-			"z-index": "4",
-			"display": "none",
-			"position": "absolute",
-			"overflow": "hidden"
-		};
-		currentPanelIndicatorWrapperBlock.DOMClasses = "row no-gutters h4 justify-content-center text-white";
-		currentPanelIndicatorWrapperBlock.DOMHtml = `<span id="${state.globalFunctions.getElementId("currentPanelIndicator")}"> - </span>`;
-		let currentPanelIndicatorWrapperElem = currentPanelIndicatorWrapperBlock.createElementObjectFromBlock();
-		return currentPanelIndicatorWrapperElem;
-	}
-
-	function createPanelDisplayWrapperElem(imageUrl) {
-		let panelDisplayWrapperBlock = new Block(state.globalFunctions.getElementId("panelDisplayWrapper")); 
-		panelDisplayWrapperBlock.DOMClasses = "row no-gutters justify-content-center pt-5";
-		let panelDisplayImageStyle = "z-index: 1;transition-duration: 0.5s; transition-timing-function: ease-in;";	// set animation for panel transition
-		let panelDisplayImageHolderStyle = 
-			`overflow: hidden; 
-			z-index: 5;
-			${panelDisplayImageStyle};`// set animation for panel transition
-			//border-radius: 2em;`;		// to enable rounded corners for panel
-		panelDisplayWrapperBlock.DOMHtml = 
-		`<div id="${state.globalFunctions.getElementId("panelDisplayImageHolder")}" style="${panelDisplayImageHolderStyle}">
-			<img 
-				id="${state.globalFunctions.getElementId("panelDisplayImage")}" 
-				class="no-resize"
-				src="${imageUrl}"
-				style="${panelDisplayImageStyle}"
-				width="auto" >
-		</div>`;
-		let panelDisplayWrapperElem = panelDisplayWrapperBlock.createElementObjectFromBlock();
-		return panelDisplayWrapperElem;
-	}
-
-	function createHelpModalElem() {
-		let helpModalBlock = new Block(state.globalFunctions.getElementId("helpModalWrapper"));
-		helpModalBlock.DOMCss = {};
-		helpModalBlock.DOMClasses = "";
-		let useSerifStyle = "font-family: serif;";
-		helpModalBlock.DOMHtml = 
-		`<form class="form-inline">
-			<button type="button" class="btn btn-lg mb-2 text-light" title="Show help" data-toggle="modal" 
-				id="${state.globalFunctions.getElementId("openHelpModalBtn")}" 
-				data-target="#${state.globalFunctions.getElementId("helpModal")}"
-				style="position:fixed; bottom: 0; z-index: 6;">
-				${state.symbolCodesForNavigator.info} 
-			</button>
-		</form>
-		<div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="Help" aria-hidden="true"
-			id="${state.globalFunctions.getElementId("helpModal")}" >
-			<div class="modal-dialog modal-lg" role="document">
-				<div class="modal-content">
-					<div class="modal-header">
-						<h5 class="modal-title">How to use Comic Viewer?</h5>
-						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-							<span aria-hidden="true">&times;</span>
-						</button>
-					</div>
-					<div class="modal-body">
-						<p> You can use the viewer either through your mouse or your keyboard. </p>
-						<div class="card">
-							<div class="card-header text-center">
-								Using your keyboard <i class="far fa-keyboard"></i>
-							</div>
-							<div class="card-body">
-								<p class="card-text"> 
-									You can navigate through panels using your keyboard. Here are some useful keys: 
-									<dl class="row">
-										<dt class="col-sm-3"> Left Arrow </dt> <dd class="col-sm-9"> Go to previous panel.</dd>
-										<dt class="col-sm-3"> Right Arrow </dt> <dd class="col-sm-9"> Go to next panel.</dd>
-										<dt class="col-sm-3"> Home key </dt> <dd class="col-sm-9"> Go to the first panel.</dd>
-										<dt class="col-sm-3"> End key </dt> <dd class="col-sm-9"> Go to the final panel.</dd>
-										<dt class="col-sm-3"> Shift + Left Arrow </dt> <dd class="col-sm-9"> Go to previous page.</dd>
-										<dt class="col-sm-3"> Shift + Right Arrow </dt> <dd class="col-sm-9"> Go to next page.</dd>
-										<dt class="col-sm-3" style="${useSerifStyle}"> F </dt> <dd class="col-sm-9"> Toggle full page view. </dd>
-										<dt class="col-sm-3" style="${useSerifStyle}"> I </dt> <dd class="col-sm-9"> Open (and close) this help box. </dd>
-									</dl>
-								</p>
-							</div>
-						</div>
-						<div class="card">
-							<div class="card-header text-center">
-								Using your mouse <i class="fas fa-mouse"></i>
-							</div>
-							<div class="card-body">
-								<p class="card-text"> 
-									Hover the mouse pointer over the panel to bring up the panel navigator menu. 
-									Each button is explained below.
-									<dl class="row">
-										<dt class="col-sm-3"> ${state.symbolCodesForNavigator.gotoFirstPanel}  </dt> <dd class="col-sm-9"> Go to the first panel. </dd>
-										<dt class="col-sm-3"> ${state.symbolCodesForNavigator.gotoPrevPanel} </dt> <dd class="col-sm-9"> Go to previous panel.</dd>
-										<dt class="col-sm-3"> ${state.symbolCodesForNavigator.gotoNextPanel} </dt> <dd class="col-sm-9"> Go to next panel.</dd>
-										<dt class="col-sm-3"> ${state.symbolCodesForNavigator.gotoFinalPanel} </dt> <dd class="col-sm-9"> Go to the final panel.</dd>
-										<dt class="col-sm-3"> ${state.symbolCodesForNavigator.gotoPrevPage2x} </dt> <dd class="col-sm-9"> Turn to previous page.</dd>
-										<dt class="col-sm-3"> ${state.symbolCodesForNavigator.gotoNextPage2x} </dt> <dd class="col-sm-9"> Turn to next page.</dd>
-										<dt class="col-sm-3"> ${state.symbolCodesForNavigator.viewWholePage2x} </dt> <dd class="col-sm-9"> Toggle full page view.</dd>
-										<dt class="col-sm-3"> ${state.symbolCodesForNavigator.info} </dt> <dd class="col-sm-9"> Open (and close) this help box. </dd>
-									</dl>
-								</p>
-							</div>
-						</div>
-					</div>
-					<div class="modal-footer">
-						<div class="card-footer text-muted">
-							<span class="text-info"> Note 1: </span> <small> The panel navigator menu will disappear after about 2 seconds of mouse inactivity. Move the pointer again to bring up the menu.
-							However, keeping the pointer on the menu itself will prevent it from disappearing automatically. </small>
-						</div>
-						<div class="card-footer text-muted">
-							<span class="text-info"> Note 2: </span> <small> Going to previous panel while on the first panel of the page will take 
-							you to the last panel of the previous page (if any). Similarly, going to the next panel while on the last panel 
-							of the page, will take you to the first panel of the next page (if any). </small>
-						</div>
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-primary" title="TODO: link to help page">More info </button>
-					</div>
-				</div>
-			</div>
-		</div>`;
-		let helpModalElem = helpModalBlock.createElementObjectFromBlock();
-		helpModalElem.tablIndex = "-1";
-		return helpModalElem;
-	}
-
 	function initAppEntryElem() {
 		let appEntryElem = document.getElementById(state.globalFunctions.getElementId("appEntry"));
 		appEntryElem.className = "container-fluid no-gutters py-2";
@@ -632,17 +636,17 @@ function comicPanelNavigatorAppInit( appState ) {
 
 	function initDivs() {
 		initAppEntryElem();
-		state.navigationElem = createNavigationElem();
-		state.currentPanelIndicatorWrapperElem = createCurrentPanelIndicatorWrapperElem();
-		state.panelDisplayWrapperElem = createPanelDisplayWrapperElem(state.comicData.pages[state.comicData.currentPageIdx].pageUrl);
-		state.helpModalElem = createHelpModalElem();
+		state.navigationElem = createNavigationElem(state);
+		state.currentPanelIndicatorWrapperElem = createCurrentPanelIndicatorWrapperElem(state);
+		state.panelDisplayWrapperElem = createPanelDisplayWrapperElem(state);
+		state.helpModalElem = createHelpModalElem(state);
 		state.globalFunctions.appendElementObjectToDOM(state.globalFunctions.getElementId("appEntry"), state.navigationElem);
 		state.globalFunctions.appendElementObjectToDOM(state.globalFunctions.getElementId("appEntry"), state.currentPanelIndicatorWrapperElem);
 		state.globalFunctions.appendElementObjectToDOM(state.globalFunctions.getElementId("appEntry"), state.panelDisplayWrapperElem);
 		state.globalFunctions.appendElementObjectToDOM(state.globalFunctions.getElementId("appEntry"), state.helpModalElem);
 	}
 
-	/**
+	/** [NOT USED]
 	 * Parse and return data into suitable format (i.e. a list usually)
 	 */
 	function initData(jsonString) {
@@ -650,7 +654,7 @@ function comicPanelNavigatorAppInit( appState ) {
 		let dataAsList = dataParser.parsePanelDataFromString(jsonString);
 		return dataAsList;
 	}
-
+	/* [NOT USED] */
 	function initComicData(jsonString) {
 		let parsedComicData = JSON.parse(jsonString);
 		return parsedComicData;
@@ -757,7 +761,7 @@ function comicPanelNavigatorAppInit( appState ) {
 				console.log(msg);
 				state.comicData.currentPageIdx = 0;	// delete me
 				initDivs();
-				state.panelNavigatorHandler = new PanelNavigatorHandler(state.comicData.pages[state.comicData.currentPageIdx].panelData);
+				state.panelNavigatorHandler = new PanelNavigatorHandler(state.comicData.pages[state.comicData.currentPageIdx].panelData, state);
 				initOnloadMethods(state.panelNavigatorHandler);
 				initTooltips();
 				initNavigatorBinding(state.panelNavigatorHandler);
