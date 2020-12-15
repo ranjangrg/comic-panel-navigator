@@ -173,7 +173,7 @@ class PanelNavigatorHandler {
 		let indicatorElem = document.getElementById(this.state.currentPanelIndicator);
 		if (indicatorElem) {
 			let newIndicatorText = "Page " + (this.globalState.comicData.currentPageIdx + 1) + " | Panel ";
-			newIndicatorText += (this.state.currentPanelIdx + 1).toString();
+			newIndicatorText += (parseInt(this.state.currentPanelIdx) + 1).toString();
 			indicatorElem.innerText = newIndicatorText;
 		}
 		// change input indicator
