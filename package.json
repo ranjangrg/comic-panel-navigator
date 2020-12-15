@@ -1,6 +1,6 @@
 {
   "name": "comic-panel-navigator",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Provides navigator for comics panel-by-panel",
   "private": false,
   "dependencies": {
