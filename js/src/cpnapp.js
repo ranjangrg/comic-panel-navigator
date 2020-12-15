@@ -7,7 +7,7 @@
  * 5. soft-code hardcoded lines: within "createNavigationElem()",
  *  const navigationHandlerName = "state.panelNavigatorHandler";
  * 6. (IMPORTANT) Load new pages (preferably via URLs not local path) (... partially DONE)
- * 7. Mouse-click on panel (in full page view) to get to panel feature (Very user friendly)
+ * 7. Mouse-click on panel (in full page view) to get to panel feature (Very user friendly) (... DONE (needs further testing))
  * 8. have page-turn like effect when page is turned/changed (visual indication of page turn)
  * 9. implement settings feature (+ select app height etc.)
  * 10. Use global Class instead of scoped function (... DONE)
@@ -283,7 +283,46 @@ class PanelNavigatorHandler {
 			navigatorWrapperElem.style.display = "";
 			currentPanelIndicatorWrapperElem.style.display = "";
 		};
+		// 
+		imageElem.onclick = function(event) {
+			if (this.state.fullPageRequested) {	// ONLY act on handle event while on full-page-view
+				this.handleClickOnFullPageView(event, imageElem);
+			}
+		}.bind(this);
 	}
+
+	// handler for click-on-full-page to navigate to clicked panel
+	handleClickOnFullPageView(event, imageElem) {
+		var selfHandlerObj = this;	// handler MUST be in scope for mouse events below
+		const scaleFactor = imageElem.width/imageElem.naturalWidth;
+		let clickedPosition = [
+			(event.pageX - imageElem.offsetLeft) / scaleFactor, 
+			(event.pageY - imageElem.offsetTop) / scaleFactor
+		];
+		let clickedPanelIdx = undefined;	// will hold value of panel clicked-on
+		for (let panelIdx in selfHandlerObj.state.panelLocations) {
+			/* loop through all panels within current page */
+			let currentPanel = selfHandlerObj.state.panelLocations[panelIdx];
+			const pointA = [parseFloat(currentPanel.x), parseFloat(currentPanel.y)];
+			const pointB = [
+				pointA[0] + parseFloat(currentPanel.width),
+				pointA[1] + parseFloat(currentPanel.height),
+			];
+			// check if clicked within this panel
+			if (
+				( clickedPosition[0] > pointA[0] && clickedPosition[0] < pointB[0] ) &&
+				( clickedPosition[1] > pointA[1] && clickedPosition[1] < pointB[1] )
+			) {
+				clickedPanelIdx = panelIdx;
+				break;	// since panel is found, break out of search loop
+			}
+		}
+		if (clickedPanelIdx !== undefined) {
+			this.gotoPanel(clickedPanelIdx);
+			this.gotoFullPageView();
+		}
+	}
+
 	initKeepNavigatorDisplayedTrigger() {
 		var selfHandlerObj = this;	// handler MUST be in scope for mouse events below
 		let navigatorWrapperElem = document.getElementById(this.state.navigatorWrapper);
@@ -749,14 +788,15 @@ class comicPanelNavigatorApp {
 	 * or 'state.globalFunctions'
 	 * @param {HandlerObject} navigationHandler 
 	 */
-	initNavigatorBinding(navigationHandler) {
-		document.getElementById(this.state.navigatorBtnId.gotoPrevPage).onclick = function() { this.state.globalFunctions.gotoPreviousPage(); };
+	initNavigatorBinding(selfAppObject) {
+		let navigationHandler = selfAppObject.state.panelNavigatorHandler;
+		document.getElementById(this.state.navigatorBtnId.gotoPrevPage).onclick = function() { selfAppObject.state.globalFunctions.gotoPreviousPage(); };
 		document.getElementById(this.state.navigatorBtnId.gotoFirstPanel).onclick = function() { navigationHandler.gotoFirstPanel(); };
 		document.getElementById(this.state.navigatorBtnId.gotoPrevPanel).onclick = function() { navigationHandler.gotoPrevPanel(); };
 		document.getElementById(this.state.navigatorBtnId.viewWholePage).onclick = function() { navigationHandler.gotoFullPageView(); };
 		document.getElementById(this.state.navigatorBtnId.gotoNextPanel).onclick = function() { navigationHandler.gotoNextPanel(); };
 		document.getElementById(this.state.navigatorBtnId.gotoFinalPanel).onclick = function() { navigationHandler.gotoFinalPanel(); };
-		document.getElementById(this.state.navigatorBtnId.gotoNextPage).onclick = function() { this.state.globalFunctions.gotoNextPage(); };
+		document.getElementById(this.state.navigatorBtnId.gotoNextPage).onclick = function() { selfAppObject.state.globalFunctions.gotoNextPage(); };
 	}
 
 	/**
@@ -782,7 +822,7 @@ class comicPanelNavigatorApp {
 				selfAppObject.state.panelNavigatorHandler = new PanelNavigatorHandler(selfAppObject.state.comicData.pages[selfAppObject.state.comicData.currentPageIdx].panelData, selfAppObject.state);
 				selfAppObject.initOnloadMethods(selfAppObject.state.panelNavigatorHandler);
 				selfAppObject.initTooltips();
-				selfAppObject.initNavigatorBinding(selfAppObject.state.panelNavigatorHandler);
+				selfAppObject.initNavigatorBinding(selfAppObject);
 				selfAppObject.initKeyBinding(selfAppObject.state.panelNavigatorHandler);
 			}.bind(selfAppObject)).catch( (err) => {
 				console.log(err);	//console.error(err);
