@@ -400,7 +400,7 @@ function createNavigationElem(globalState) {
 			</form>
 		</div>
 		<div id="${globalState.globalFunctions.getElementId("symbolNavigator")}" class="row no-gutters justify-content-center">
-			<form class="form-inline">
+			<form class="form-inline text-center">
 				<button id="${globalState.navigatorBtnId.gotoPrevPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Page (Shift + &larr;)"> ${globalState.symbolCodesForNavigator.gotoPrevPage} </button>
 				<button id="${globalState.navigatorBtnId.gotoFirstPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to First Panel (home)"> ${globalState.symbolCodesForNavigator.gotoFirstPanel} </button> &nbsp;
 				<button id="${globalState.navigatorBtnId.gotoPrevPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Panel (&larr;)"> ${globalState.symbolCodesForNavigator.gotoPrevPanel} </button> &nbsp;
@@ -427,7 +427,7 @@ function createCurrentPanelIndicatorWrapperElem(globalState) {
 		"padding": "0.5em",
 		"background-image": "linear-gradient(0deg, rgba(0,0,0,0.5), rgba(0,0,0,0.8))"
 	};
-	currentPanelIndicatorWrapperBlock.DOMClasses = "row no-gutters h4 justify-content-center text-white";
+	currentPanelIndicatorWrapperBlock.DOMClasses = "row no-gutters h4 text-center text-white";
 	currentPanelIndicatorWrapperBlock.DOMHtml = `<span id="${globalState.globalFunctions.getElementId("currentPanelIndicator")}"> - </span>`;
 	let currentPanelIndicatorWrapperElem = currentPanelIndicatorWrapperBlock.createElementObjectFromBlock();
 	return currentPanelIndicatorWrapperElem;
@@ -834,7 +834,7 @@ class comicPanelNavigatorApp {
 /* App initialization example shown below */
 /*
 let comicPanelApp = new comicPanelNavigatorApp( {
-	"appHeight": "790px",	// height of the total app (740px normally)
-	"comicDataUrl": "http://192.168.0.67/assets/data/comic-data.php"
+	"appHeight": "740px",	// height of the total app (740px normally)
+	"comicDataUrl": "http://192.168.0.82/assets/data/comic-data.php"
 } );
 */
