@@ -832,7 +832,9 @@ class comicPanelNavigatorApp {
 }
 
 /* App initialization example shown below */
+/*
 let comicPanelApp = new comicPanelNavigatorApp( {
 	"appHeight": "790px",	// height of the total app (740px normally)
 	"comicDataUrl": "http://192.168.0.67/assets/data/comic-data.php"
 } );
+*/
