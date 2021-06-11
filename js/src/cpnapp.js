@@ -91,7 +91,14 @@ class PanelDisplay {
 		let imageHolderElem = document.getElementById(this.globalState.globalFunctions.getElementId("panelDisplayImageHolder"));
 		let imageElem = document.getElementById(this.globalState.globalFunctions.getElementId("panelDisplayImage"));
 
+		// check if panel height is larger than the app-view itself
+		if ( this.state.targetHeight > parseFloat(this.globalState.appHeight) ) {
+			console.warn("[ PANEL VIEW ] Panel-image Overflow detected!");
+			this.state.targetHeight = parseFloat(this.globalState.appHeight);
+		}
+
 		this.state.panelData.height = this.state.targetHeight;
+
 		let scaleFactor = parseFloat(this.state.panelData.height) / parseFloat(this.state.panelOriginalData.height);
 
 		// check if new panel width fits into viewport
@@ -381,12 +388,13 @@ function createNavigationElem(globalState) {
 		"width": "100%",
 		"position": "absolute",
 		"left": "0%",
-		"background-image": "linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.3), rgba(0,0,0,0.5), rgba(0,0,0,0.7))",
+		"background-image": "linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.45), rgba(0,0,0,0.5), rgba(0,0,0,0.0))",
 		"overflow": "hidden",
 		"text-shadow": "-1px -1px 0 #000, 1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000",	// sharpens icons
 		"z-index": "5"
 	};
-	navigationBlock.DOMClasses = "row no-gutters pt-1";
+	navigationBlock.DOMClasses = "row no-gutters";
+
 	const navigationHandlerName = "state.panelNavigatorHandler";	// name of the handler object; handler should be created after DOM is created
 
 	navigationBlock.DOMHtml = 
@@ -419,16 +427,22 @@ function createCurrentPanelIndicatorWrapperElem(globalState) {
 	let currentPanelIndicatorWrapperBlock = new Block(globalState.globalFunctions.getElementId("currentPanelIndicatorWrapper"));
 	currentPanelIndicatorWrapperBlock.DOMCss = { 
 		"z-index": "4",
+		"font-family": "'Bangers', cursive",
 		"width": "100%",
 		"bottom": "0",
 		"display": "none",
-		"position": "fixed",
+		"position": "absolute",
 		"overflow": "hidden",
 		"padding": "0.5em",
-		"background-image": "linear-gradient(0deg, rgba(0,0,0,0.5), rgba(0,0,0,0.8))"
+		"background-image": "linear-gradient(0deg, rgba(0,0,0,0.0), rgba(0,0,0,0.5), rgba(0,0,0,0.45), rgba(0,0,0,0.0))",
+		// only for web-kit based browser
+		// "-webkit-text-stroke": "1px black",
+		// "-webkit-text-fill-color": "white"
+		"text-shadow": "2px 2px 8px black",
+		"letter-spacing": "0.5ch"
 	};
 	currentPanelIndicatorWrapperBlock.DOMClasses = "row no-gutters h4 text-center text-white";
-	currentPanelIndicatorWrapperBlock.DOMHtml = `<span id="${globalState.globalFunctions.getElementId("currentPanelIndicator")}"> - </span>`;
+	currentPanelIndicatorWrapperBlock.DOMHtml = `<span class="col" id="${globalState.globalFunctions.getElementId("currentPanelIndicator")}"> - </span>`;
 	let currentPanelIndicatorWrapperElem = currentPanelIndicatorWrapperBlock.createElementObjectFromBlock();
 	return currentPanelIndicatorWrapperElem;
 }
@@ -436,7 +450,8 @@ function createCurrentPanelIndicatorWrapperElem(globalState) {
 function createPanelDisplayWrapperElem(globalState) {
 	let imageUrl = globalState.comicData.pages[globalState.comicData.currentPageIdx].pageUrl;
 	let panelDisplayWrapperBlock = new Block(globalState.globalFunctions.getElementId("panelDisplayWrapper")); 
-	panelDisplayWrapperBlock.DOMClasses = "row no-gutters justify-content-center pt-5";
+	panelDisplayWrapperBlock.DOMClasses = "row no-gutters justify-content-center";
+
 	let panelDisplayImageStyle = "z-index: 1;transition-duration: 0.5s; transition-timing-function: ease-in;";	// set animation for panel transition
 	let panelDisplayImageHolderStyle = 
 		`overflow: hidden; 
@@ -701,7 +716,9 @@ class comicPanelNavigatorApp {
 
 	initAppEntryElem() {
 		let appEntryElem = document.getElementById(this.state.globalFunctions.getElementId("appEntry"));
-		appEntryElem.className = "container-fluid no-gutters py-2";
+		appEntryElem.className = "container-fluid no-gutters";
+
+		appEntryElem.style.position = "relative";
 		appEntryElem.style.width = "100%";
 		//appEntryElem.style.backgroundImage = `url('${bgImageSrc}')`;	// uncomment for background image
 		appEntryElem.style.backgroundColor = "#111111";
@@ -718,6 +735,14 @@ class comicPanelNavigatorApp {
 		selfAppObject.state.globalFunctions.appendElementObjectToDOM(selfAppObject.state.globalFunctions.getElementId("appEntry"), selfAppObject.state.currentPanelIndicatorWrapperElem);
 		selfAppObject.state.globalFunctions.appendElementObjectToDOM(selfAppObject.state.globalFunctions.getElementId("appEntry"), selfAppObject.state.panelDisplayWrapperElem);
 		selfAppObject.state.globalFunctions.appendElementObjectToDOM(selfAppObject.state.globalFunctions.getElementId("appEntry"), selfAppObject.state.helpModalElem);
+	}
+
+	importExternalLibraries() {
+		var link = document.createElement('link');
+		link.setAttribute('rel', 'stylesheet');
+		link.setAttribute('type', 'text/css');
+		link.setAttribute('href', 'https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+		document.head.appendChild(link);
 	}
 
 	/** [NOT USED]
@@ -813,10 +838,11 @@ class comicPanelNavigatorApp {
 
 	initApp(selfAppObject) {
 		selfAppObject.initGlobalState.then( function(initGlobalStateMsg) {
-			console.log(initGlobalStateMsg);
+			console.info(initGlobalStateMsg);
 			selfAppObject.initGlobalFunctions(selfAppObject);
 			selfAppObject.initPageData.then( function(msg) {
-				console.log(msg);
+				console.info(msg);
+				selfAppObject.importExternalLibraries();	// import external CSS lib via headers
 				selfAppObject.state.comicData.currentPageIdx = 0;	// delete me
 				selfAppObject.initDivs(selfAppObject);
 				selfAppObject.state.panelNavigatorHandler = new PanelNavigatorHandler(selfAppObject.state.comicData.pages[selfAppObject.state.comicData.currentPageIdx].panelData, selfAppObject.state);
@@ -825,7 +851,7 @@ class comicPanelNavigatorApp {
 				selfAppObject.initNavigatorBinding(selfAppObject);
 				selfAppObject.initKeyBinding(selfAppObject.state.panelNavigatorHandler);
 			}.bind(selfAppObject)).catch( (err) => {
-				console.log(err);	//console.error(err);
+				console.err(err);	//console.error(err);
 			});
 		}.bind(selfAppObject) );
 	}
