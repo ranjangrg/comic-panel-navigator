@@ -723,6 +723,13 @@ class comicPanelNavigatorApp {
 		//appEntryElem.style.backgroundImage = `url('${bgImageSrc}')`;	// uncomment for background image
 		appEntryElem.style.backgroundColor = "#111111";
 		appEntryElem.style.height = this.state.appHeight;
+		appEntryElem.tabIndex = "-1";	// required for elem.focus()
+
+		// focus on app (after onclick event)
+		appEntryElem.onclick = function putAppInFocus() {
+			this.focus();
+		}
+
 	}
 
 	initDivs(selfAppObject) {
@@ -779,31 +786,34 @@ class comicPanelNavigatorApp {
 	 */
 	initKeyBinding(navigationHandler) {
 		document.addEventListener("keydown", event => {
-			let keyPressed = event.key;
-			if (keyPressed === "ArrowLeft") {
-				if (event.shiftKey) {
-					this.state.globalFunctions.gotoPreviousPage();
-				} else {
-					navigationHandler.gotoPrevPanel();
+			// only accept keystrokes while app is in focus
+			if (document.activeElement.id === this.elementIDs.appEntry.substr(1)) {
+				let keyPressed = event.key;
+				if (keyPressed === "ArrowLeft") {
+					if (event.shiftKey) {
+						this.state.globalFunctions.gotoPreviousPage();
+					} else {
+						navigationHandler.gotoPrevPanel();
+					}
+				} else if (keyPressed === "ArrowRight") {
+					if (event.shiftKey) {
+						this.state.globalFunctions.gotoNextPage();
+					} else {
+						navigationHandler.gotoNextPanel();
+					}
+				} else if (keyPressed === "Home") {
+					navigationHandler.gotoFirstPanel();
+				} else if (keyPressed === "End") {
+					navigationHandler.gotoFinalPanel();
+				} else if (keyPressed === "f") {
+					navigationHandler.gotoFullPageView();
+				} else if (keyPressed === "i") {
+					let openHelpModalButtonElemId = this.state.globalFunctions.getElementId("openHelpModalBtn");
+					let openHelpModalButtonElem = document.getElementById(openHelpModalButtonElemId);
+					openHelpModalButtonElem.click();
 				}
-			} else if (keyPressed === "ArrowRight") {
-				if (event.shiftKey) {
-					this.state.globalFunctions.gotoNextPage();
-				} else {
-					navigationHandler.gotoNextPanel();
-				}
-			} else if (keyPressed === "Home") {
-				navigationHandler.gotoFirstPanel();
-			} else if (keyPressed === "End") {
-				navigationHandler.gotoFinalPanel();
-			} else if (keyPressed === "f") {
-				navigationHandler.gotoFullPageView();
-			} else if (keyPressed === "i") {
-				let openHelpModalButtonElemId = this.state.globalFunctions.getElementId("openHelpModalBtn");
-				let openHelpModalButtonElem = document.getElementById(openHelpModalButtonElemId);
-				openHelpModalButtonElem.click();
+				// maybe be bind PageUp and PageDown to skip 5 panels +-
 			}
-			// maybe be bind PageUp and PageDown to skip 5 panels +-
 		});	
 	}
 
