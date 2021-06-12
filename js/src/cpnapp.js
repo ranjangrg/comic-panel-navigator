@@ -6,8 +6,8 @@
  * 4. not important atm; Padding in panels
  * 5. soft-code hardcoded lines: within "createNavigationElem()",
  *  const navigationHandlerName = "state.panelNavigatorHandler";
- * 6. (IMPORTANT) Load new pages (preferably via URLs not local path) (... partially DONE)
- * 7. Mouse-click on panel (in full page view) to get to panel feature (Very user friendly) (... DONE (needs further testing))
+ * 6. (IMPORTANT) Load new pages (preferably via URLs not local path) (...DONE)
+ * 7. Mouse-click on panel (in full page view) to get to panel feature (Very user friendly) (... DONE)
  * 8. have page-turn like effect when page is turned/changed (visual indication of page turn)
  * 9. implement settings feature (+ select app height etc.)
  * 10. Use global Class instead of scoped function (... DONE)
@@ -394,6 +394,7 @@ function createNavigationElem(globalState) {
 		"z-index": "5"
 	};
 	navigationBlock.DOMClasses = "row no-gutters";
+	const navigationBtnClassNames = "btn btn-sm col mb-2 text-light";	// classes to use for nav buttons
 
 	const navigationHandlerName = "state.panelNavigatorHandler";	// name of the handler object; handler should be created after DOM is created
 
@@ -409,13 +410,13 @@ function createNavigationElem(globalState) {
 		</div>
 		<div id="${globalState.globalFunctions.getElementId("symbolNavigator")}" class="row no-gutters justify-content-center">
 			<form class="form-inline text-center">
-				<button id="${globalState.navigatorBtnId.gotoPrevPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Page (Shift + &larr;)"> ${globalState.symbolCodesForNavigator.gotoPrevPage} </button>
-				<button id="${globalState.navigatorBtnId.gotoFirstPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to First Panel (home)"> ${globalState.symbolCodesForNavigator.gotoFirstPanel} </button> &nbsp;
-				<button id="${globalState.navigatorBtnId.gotoPrevPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Previous Panel (&larr;)"> ${globalState.symbolCodesForNavigator.gotoPrevPanel} </button> &nbsp;
-				<button id="${globalState.navigatorBtnId.viewWholePage}" type="button" class="btn btn-lg mb-2 text-light"  data-toggle="tooltip" title="View Whole Page (f)"> ${globalState.symbolCodesForNavigator.viewWholePage}</button>
-				<button id="${globalState.navigatorBtnId.gotoNextPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Next Panel (&rarr;)"> ${globalState.symbolCodesForNavigator.gotoNextPanel} </button> &nbsp;
-				<button id="${globalState.navigatorBtnId.gotoFinalPanel}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Final Panel (end)"> ${globalState.symbolCodesForNavigator.gotoFinalPanel} </button>
-				<button id="${globalState.navigatorBtnId.gotoNextPage}" type="button" class="btn btn-lg mb-2 text-light" data-toggle="tooltip" title="Go to Next Page (Shift + &rarr;)"> ${globalState.symbolCodesForNavigator.gotoNextPage} </button>
+				<button id="${globalState.navigatorBtnId.gotoPrevPage}" type="button" class="${navigationBtnClassNames}" data-toggle="tooltip" title="Go to Previous Page (Shift + &larr;)"> ${globalState.symbolCodesForNavigator.gotoPrevPage} </button>
+				<button id="${globalState.navigatorBtnId.gotoFirstPanel}" type="button" class="${navigationBtnClassNames}" data-toggle="tooltip" title="Go to First Panel (home)"> ${globalState.symbolCodesForNavigator.gotoFirstPanel} </button> &nbsp;
+				<button id="${globalState.navigatorBtnId.gotoPrevPanel}" type="button" class="${navigationBtnClassNames}" data-toggle="tooltip" title="Go to Previous Panel (&larr;)"> ${globalState.symbolCodesForNavigator.gotoPrevPanel} </button> &nbsp;
+				<button id="${globalState.navigatorBtnId.viewWholePage}" type="button" class="${navigationBtnClassNames}"  data-toggle="tooltip" title="View Whole Page (f)"> ${globalState.symbolCodesForNavigator.viewWholePage}</button>
+				<button id="${globalState.navigatorBtnId.gotoNextPanel}" type="button" class="${navigationBtnClassNames}" data-toggle="tooltip" title="Go to Next Panel (&rarr;)"> ${globalState.symbolCodesForNavigator.gotoNextPanel} </button> &nbsp;
+				<button id="${globalState.navigatorBtnId.gotoFinalPanel}" type="button" class="${navigationBtnClassNames}" data-toggle="tooltip" title="Go to Final Panel (end)"> ${globalState.symbolCodesForNavigator.gotoFinalPanel} </button>
+				<button id="${globalState.navigatorBtnId.gotoNextPage}" type="button" class="${navigationBtnClassNames}" data-toggle="tooltip" title="Go to Next Page (Shift + &rarr;)"> ${globalState.symbolCodesForNavigator.gotoNextPage} </button>
 			</form>
 		</div>
 	</div>`;
@@ -435,14 +436,22 @@ function createCurrentPanelIndicatorWrapperElem(globalState) {
 		"overflow": "hidden",
 		"padding": "0.5em",
 		"background-image": "linear-gradient(0deg, rgba(0,0,0,0.0), rgba(0,0,0,0.5), rgba(0,0,0,0.45), rgba(0,0,0,0.0))",
-		// only for web-kit based browser
+		// for web-kit based browser
 		// "-webkit-text-stroke": "1px black",
 		// "-webkit-text-fill-color": "white"
 		"text-shadow": "2px 2px 8px black",
 		"letter-spacing": "0.5ch"
 	};
-	currentPanelIndicatorWrapperBlock.DOMClasses = "row no-gutters h4 text-center text-white";
-	currentPanelIndicatorWrapperBlock.DOMHtml = `<span class="col" id="${globalState.globalFunctions.getElementId("currentPanelIndicator")}"> - </span>`;
+	currentPanelIndicatorWrapperBlock.DOMClasses = "row no-gutters h4 text-white";
+	currentPanelIndicatorWrapperBlock.DOMHtml = `
+		<button type="button" class="col-1 btn btn-sm text-light" title="Show help" data-toggle="modal" 
+			id="${globalState.globalFunctions.getElementId("openHelpModalBtn")}" 
+			data-target="#${globalState.globalFunctions.getElementId("helpModal")}">
+			${globalState.symbolCodesForNavigator.info} 
+		</button>
+		<span class="col-10 text-center" id="${globalState.globalFunctions.getElementId("currentPanelIndicator")}"> - </span>
+		<span class="col-1 text-center">  </span>
+	`;
 	let currentPanelIndicatorWrapperElem = currentPanelIndicatorWrapperBlock.createElementObjectFromBlock();
 	return currentPanelIndicatorWrapperElem;
 }
@@ -477,15 +486,7 @@ function createHelpModalElem(globalState) {
 	helpModalBlock.DOMClasses = "";
 	let useSerifStyle = "font-family: serif;";
 	helpModalBlock.DOMHtml = 
-	`<form class="form-inline">
-		<button type="button" class="btn btn-lg mb-2 text-light" title="Show help" data-toggle="modal" 
-			id="${globalState.globalFunctions.getElementId("openHelpModalBtn")}" 
-			data-target="#${globalState.globalFunctions.getElementId("helpModal")}"
-			style="position:fixed; bottom: 0; z-index: 6;">
-			${globalState.symbolCodesForNavigator.info} 
-		</button>
-	</form>
-	<div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="Help" aria-hidden="true"
+	`<div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="Help" aria-hidden="true"
 		id="${globalState.globalFunctions.getElementId("helpModal")}" >
 		<div class="modal-dialog modal-lg" role="document">
 			<div class="modal-content">
@@ -744,6 +745,24 @@ class comicPanelNavigatorApp {
 		selfAppObject.state.globalFunctions.appendElementObjectToDOM(selfAppObject.state.globalFunctions.getElementId("appEntry"), selfAppObject.state.helpModalElem);
 	}
 
+	// CSS media queries; ALWAYS after divs are created
+	initDivStyles(selfAppObject) {
+		var mql = window.matchMedia("(max-width: 500px)");
+		if (mql.matches) {
+			/* the viewport is 500 pixels wide or less */
+		} else {
+			/* the viewport is more than than 500 pixels wide */
+		}
+		/* listen to changes in media query e.g. display/viewport */
+		mql.addEventListener( "change", (e) => {
+			if (e.matches) {
+				/* the viewport is 500 pixels wide or less */
+			} else {
+				/* the viewport is more than than 500 pixels wide */
+			}
+		})
+	}	
+
 	importExternalLibraries() {
 		var link = document.createElement('link');
 		link.setAttribute('rel', 'stylesheet');
@@ -855,6 +874,7 @@ class comicPanelNavigatorApp {
 				selfAppObject.importExternalLibraries();	// import external CSS lib via headers
 				selfAppObject.state.comicData.currentPageIdx = 0;	// delete me
 				selfAppObject.initDivs(selfAppObject);
+				selfAppObject.initDivStyles(selfAppObject);	// always after all div elements are created
 				selfAppObject.state.panelNavigatorHandler = new PanelNavigatorHandler(selfAppObject.state.comicData.pages[selfAppObject.state.comicData.currentPageIdx].panelData, selfAppObject.state);
 				selfAppObject.initOnloadMethods(selfAppObject.state.panelNavigatorHandler);
 				selfAppObject.initTooltips();
