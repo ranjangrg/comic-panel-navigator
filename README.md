@@ -3,7 +3,7 @@
 ## About
 Comic Panel Navigator provides an interface for navigating through sections within an image. 
 Taking a comic book as a reference, the app allows user to navigate through each panel (using either buttons on-screen or keyboard-input). 
-> For devs using this app: A properly written data file is used to specify where the image files are located and where each panels are located within the image. 
+> Passing comic-data within app: A properly written data file is used to specify where the image files are located and where each panels are located within the image. 
 See [here](#comic-data-file) for more details.
 
 ## Usage
