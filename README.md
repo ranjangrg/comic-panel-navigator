@@ -69,4 +69,5 @@ Web-based project where user imports page-image and manually (visually) selects 
 2. Check compatibility on other browsers (mainly Safari)
 3. Add panel-data-extractor project (separate project)
 4. Add images to this README file.
+5. Fix Overflowing Panel (due to no max-width implemented; only max-height used). BUG prevalent in small screen devices e.g. iPhone 6s
 
