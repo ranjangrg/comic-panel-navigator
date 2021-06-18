@@ -93,7 +93,7 @@ class PanelDisplay {
 
 		// check if panel height is larger than the app-view itself
 		if ( this.state.targetHeight > parseFloat(this.globalState.appHeight) ) {
-			console.warn("[ PANEL VIEW ] Panel-image Overflow detected!");
+			console.warn("[ PANEL VIEW ] Panel-image (height) Overflow detected!");
 			this.state.targetHeight = parseFloat(this.globalState.appHeight);
 		}
 
@@ -106,6 +106,7 @@ class PanelDisplay {
 		if (widthOverflowDetected) { 
 			// recalculate dimensions (now based on 'width') so that new panel fits within viewport width
 			scaleFactor = parseFloat(this.state.maxWidth) / parseFloat(this.state.panelOriginalData.width);
+			console.warn("[ PANEL VIEW ] Panel-image (width) Overflow detected!");
 		}
 
 		this.state.panelData.width = (parseFloat(this.state.panelOriginalData.width) * scaleFactor).toString();
@@ -891,9 +892,14 @@ class comicPanelNavigatorApp {
 
 /* App initialization example shown below */
 /*
+const dimensions = {
+	"width": window.innerWidth - 30,	// allowing 30px for padding-offset
+	"height": window.innerHeight - 30
+};
+
 let comicPanelApp = new comicPanelNavigatorApp( {
-	"appHeight":	"740px",	// height of the total app (740px normally)
-	"appWidth":		600,		// max-width of app (and panel image); takes NUMBER (in px)
-	"comicDataUrl":	"http://192.168.0.82/assets/data/comic-data.php"
+	"appHeight": `${dimensions.height}px`,	// height of the total app (740px normally)
+	"appWidth": dimensions.width,	// max-width of app (and panel image); takes NUMBER (in px)
+	"comicDataUrl": "http://192.168.0.82/assets/data/comic-data.php"
 } );
 */
