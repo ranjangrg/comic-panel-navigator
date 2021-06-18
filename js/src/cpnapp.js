@@ -62,7 +62,7 @@ class PanelDisplay {
 			"panelOriginalData": {...panelData},	// copy content DONT assign directly (pointer seems the same)
 			"pageData": {"width": 0, "height": 0, "naturalWidth": 0, "naturalHeight": 0, "pageIdx": 0},
 			"targetHeight": 650,	// minimum/target height for each panel (in px)
-			"maxWidth": 1200,	// max width allowed (in px)
+			"maxWidth": globalState.appWidth,	// max width allowed (in px)
 			"padding": 32	// in px; NOT implemented yet
 		};
 		// normal windows laptop screen res: 1366 x 768
@@ -586,6 +586,7 @@ class comicPanelNavigatorApp {
 
 		this.state = {
 			"appHeight": "790px",	// height of the total app (740px normally)
+			"appWidth": 200,
 			"panelNavigatorHandler": undefined,
 			"navigationElem": undefined,
 			"currentPanelIndicatorWrapperElem": undefined,
@@ -642,6 +643,7 @@ class comicPanelNavigatorApp {
 	initPromises(appState, selfAppObject) {
 		this.initGlobalState = new Promise( function(resolve, reject) {
 			if (appState.appHeight !== undefined) { selfAppObject.state.appHeight = appState.appHeight; } 
+			if (appState.appWidth !== undefined) { selfAppObject.state.appWidth = appState.appWidth; } 
 			if (appState.comicDataUrl !== undefined) { selfAppObject.state.comicDataUrl = appState.comicDataUrl; } 
 			resolve("[INIT_GLOBAL_STATE]: Loaded new states.");
 		}.bind(selfAppObject));
@@ -890,7 +892,8 @@ class comicPanelNavigatorApp {
 /* App initialization example shown below */
 /*
 let comicPanelApp = new comicPanelNavigatorApp( {
-	"appHeight": "740px",	// height of the total app (740px normally)
-	"comicDataUrl": "http://192.168.0.82/assets/data/comic-data.php"
+	"appHeight":	"740px",	// height of the total app (740px normally)
+	"appWidth":		600,		// max-width of app (and panel image); takes NUMBER (in px)
+	"comicDataUrl":	"http://192.168.0.82/assets/data/comic-data.php"
 } );
 */
