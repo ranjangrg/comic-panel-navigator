@@ -234,6 +234,7 @@ class PanelNavigatorHandler {
 		let imageElem = document.getElementById(this.state.panelDisplayImageElemId);
 		if (imageElem) {
 			imageElem.style.transform = `translate(-${offsetX}px, -${offsetY}px)`;
+			//imageElem.style.webkitTransform = `translate(-${offsetX}px, -${offsetY}px)`; 
 		}
 	}
 	gotoPanel(panelIdx) {
@@ -721,6 +722,7 @@ class comicPanelNavigatorApp {
 	initAppEntryElem() {
 		let appEntryElem = document.getElementById(this.state.globalFunctions.getElementId("appEntry"));
 		appEntryElem.className = "container-fluid no-gutters";
+		appEntryElem.style.outline = "none";	// disable blue outline while elem in focus
 
 		appEntryElem.style.position = "relative";
 		appEntryElem.style.width = "100%";
