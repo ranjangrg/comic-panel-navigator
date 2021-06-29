@@ -124,6 +124,15 @@ class PanelDisplay {
 		let newTranslateOffsetY = parseFloat(this.state.panelOriginalData.y) * scaleFactor;
 		this.state.panelData.x = newTranslateOffsetX.toString();
 		this.state.panelData.y = newTranslateOffsetY.toString();
+
+		// center align panel (vertically) within app-container
+		// using calculated panel height and app-container height
+		console.log("App Height:", this.globalState.appHeight);
+		console.log("Img Height:", imageHolderElem.style.height);
+		const marginTopOffset = parseFloat(this.globalState.appHeight) - parseFloat(imageHolderElem.style.height);
+		console.log("Margin offset:", marginTopOffset);
+		imageHolderElem.style.marginTop = `${marginTopOffset/2}px`;
+
 	};
 }
 
@@ -465,12 +474,14 @@ function createPanelDisplayWrapperElem(globalState) {
 
 	let panelDisplayImageStyle = "z-index: 1;transition-duration: 0.5s; transition-timing-function: ease-in;";	// set animation for panel transition
 	let panelDisplayImageHolderStyle = 
-		`overflow: hidden; 
+		`overflow: hidden;
 		z-index: 5;
 		${panelDisplayImageStyle};`// set animation for panel transition
 		//border-radius: 2em;`;		// to enable rounded corners for panel
 	panelDisplayWrapperBlock.DOMHtml = 
-	`<div id="${globalState.globalFunctions.getElementId("panelDisplayImageHolder")}" style="${panelDisplayImageHolderStyle}">
+	`<div 
+		id="${globalState.globalFunctions.getElementId("panelDisplayImageHolder")}" 
+		style="${panelDisplayImageHolderStyle}">
 		<img 
 			id="${globalState.globalFunctions.getElementId("panelDisplayImage")}" 
 			class="no-resize"
@@ -478,6 +489,7 @@ function createPanelDisplayWrapperElem(globalState) {
 			style="${panelDisplayImageStyle}"
 			width="auto" >
 	</div>`;
+
 	let panelDisplayWrapperElem = panelDisplayWrapperBlock.createElementObjectFromBlock();
 	return panelDisplayWrapperElem;
 }
