@@ -127,10 +127,7 @@ class PanelDisplay {
 
 		// center align panel (vertically) within app-container
 		// using calculated panel height and app-container height
-		console.log("App Height:", this.globalState.appHeight);
-		console.log("Img Height:", imageHolderElem.style.height);
 		const marginTopOffset = parseFloat(this.globalState.appHeight) - parseFloat(imageHolderElem.style.height);
-		console.log("Margin offset:", marginTopOffset);
 		imageHolderElem.style.marginTop = `${marginTopOffset/2}px`;
 
 	};
@@ -264,12 +261,12 @@ class PanelNavigatorHandler {
 	};
 	gotoPrevPanel() {
 		this.state.fullPageRequested = false;
-		let newPanelIdx = this.state.currentPanelIdx - 1;
+		let newPanelIdx = parseInt(this.state.currentPanelIdx) - 1;
 		this.gotoPanel(newPanelIdx);
 	};
 	gotoNextPanel() {
 		this.state.fullPageRequested = false;
-		let newPanelIdx = this.state.currentPanelIdx + 1;
+		let newPanelIdx = parseInt(this.state.currentPanelIdx) + 1;
 		this.gotoPanel(newPanelIdx);
 	};
 	gotoFinalPanel() {
